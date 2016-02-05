@@ -35,7 +35,6 @@ fn process_jar_file(file_name: &String) {
     for i in 0..zip.len() {
         let mut class_file = zip.by_index(i).unwrap();
         if class_file.name().ends_with("class") {
-            println!("Reading {}", class_file.name());
             let class = ClassReader::new_from_reader(&mut class_file).unwrap();
             process_class(&class);
         }

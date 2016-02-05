@@ -1,7 +1,9 @@
 extern crate classreader;
+extern crate zip;
 
 use classreader::*;
 use std::env;
+use std::fs::File;
 
 fn main() {
     env::args().nth(1).expect("usage: javamoose <class or jar file>...");
@@ -11,6 +13,7 @@ fn main() {
         if f.ends_with("class") {
             process_class_file(&f);
         } else if f.ends_with("jar") {
+            process_jar_file(&f);
         } else {
             println!("Ignoring unknown file type {}", f);
         }
@@ -24,6 +27,19 @@ fn process_class_file(file_name: &String) {
     println!("======================================================");
     let class = ClassReader::new_from_path(&file_name).unwrap();
     process_class(&class);
+}
+
+fn process_jar_file(file_name: &String) {
+    let file = File::open(file_name).expect("couldn't find a file!");
+    let mut zip = zip::ZipArchive::new(file).expect("could not read JAR");
+    for i in 0..zip.len() {
+        let mut class_file = zip.by_index(i).unwrap();
+        if class_file.name().ends_with("class") {
+            println!("Reading {}", class_file.name());
+            let class = ClassReader::new_from_reader(&mut class_file).unwrap();
+            process_class(&class);
+        }
+    }
 }
 
 fn process_class(class: &Class) {

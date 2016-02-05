@@ -97,7 +97,15 @@ fn get_method_size(method: &Method) -> usize {
 fn get_method_lines(method: &Method) -> u16 {
     method.attributes.iter().fold(0, |sum, a| sum + match a {
             &Attribute::Code{ref attributes, ..} => attributes.iter().fold(0, |sum, a| sum + match a {
-                &Attribute::LineNumberTable(ref line_table) => get_opt_line_number(line_table.last()) - get_opt_line_number(line_table.first()),
+                &Attribute::LineNumberTable(ref line_table) => {
+                    let end = get_opt_line_number(line_table.last());
+                    let start = get_opt_line_number(line_table.first());
+                    if start > end { // TODO: Investigate when it happens
+                        0
+                    } else {
+                        end - start
+                    }
+                },
                 _ => 0
             }),
             _ => 0

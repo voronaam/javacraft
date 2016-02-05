@@ -4,7 +4,16 @@ use classreader::*;
 use std::env;
 
 fn main() {
-    let file_name = env::args().nth(1).expect("usage: javamoose <class file>");
+    env::args().nth(1).expect("usage: javamoose <class or jar file>...");
+    let mut args = env::args();
+    args.next(); // Skip exe name
+    for f in args {
+        println!("{}", f);
+        process_file(&f);
+    }
+}
+
+fn process_file(file_name: &String) {
     println!("Loading class file {}", file_name);
     println!("======================================================");
     let class = ClassReader::new_from_path(&file_name).unwrap();
@@ -19,7 +28,6 @@ fn main() {
         println!("\t\tsize:       {}", get_method_size(&method));
         println!("\t\tlines:      {}", get_method_lines(&method));
         println!("\t\tcomplexity: {}", get_method_complexity(&method));
-        // println!("{:?}", method);
     }
 
 
@@ -96,7 +104,7 @@ fn get_method_complexity(method: &Method) -> u16 {
 /// Bytecode reference: http://www.angelibrary.com/computer/java_21days/ch32.htm
 fn get_code_complexity(code: &Vec<(u32, Instruction)>) -> u16 {
     // println!("{:?}", code);
-    // We start from zero to account for always-present final return - it will add the starting one for us.
+    // We start from zero to account for always-present final return - it will add the "starting" 1 for us.
     code.iter().fold(0, |sum, instruction| sum + match instruction.1 {
         Instruction::areturn => 1,
         Instruction::athrow => 1,

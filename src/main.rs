@@ -6,6 +6,7 @@ use std::env;
 fn main() {
     let file_name = env::args().nth(1).expect("usage: javamoose <class file>");
     println!("Loading class file {}", file_name);
+    println!("======================================================");
     let class = ClassReader::new_from_path(&file_name).unwrap();
 
     assert_eq!(0xCAFEBABE, class.magic);
@@ -17,6 +18,7 @@ fn main() {
 
     // println!("{:?}", class);
 
+    println!("======================================================");
     println!("Done!");
 }
 
@@ -27,7 +29,7 @@ fn get_const(class: &Class, i: usize) -> &ConstantPoolInfo {
 fn get_string(class: &Class, index: usize) -> String {
     match get_const(class, index) {
         &ConstantPoolInfo::Utf8(ref s) => s.clone(),
-            _ => "?".to_string()
+        _ => "?".to_string()
     }
 }
 
@@ -40,14 +42,16 @@ fn get_class_name(class: &Class) -> String {
 }
 
 fn get_total_code_size(class: &Class) -> usize {
-    let mut sum: usize = 0;
-    for m in &class.methods {
-        for a in &m.attributes {
-            sum = match a {
-                &Attribute::Code{ref code, ..} => sum + &code.len(),
-                _ => sum
-            };
-        }
-    }
-    sum
+    class.methods.iter().fold(0usize, |sum, method| sum + get_method_size(method))
 }
+
+fn get_method_size(method: &Method) -> usize {
+    method.attributes.iter().fold(0usize, |sum, a| sum + match a {
+            &Attribute::Code{ref code, ..} => code.len(),
+            _ => 0
+        })
+}
+
+
+
+

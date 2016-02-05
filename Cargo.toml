@@ -1,0 +1,9 @@
+[package]
+name = "javamoose"
+version = "0.1.0"
+authors = ["Aleksey Vorona <avorona@xmatters.com>"]
+
+[dependencies]
+classreader = "0.2.0"
+zip = {version = "0.1.15", default-features = false}
+

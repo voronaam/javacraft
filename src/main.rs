@@ -8,16 +8,25 @@ fn main() {
     let mut args = env::args();
     args.next(); // Skip exe name
     for f in args {
-        println!("{}", f);
-        process_file(&f);
+        if f.ends_with("class") {
+            process_class_file(&f);
+        } else if f.ends_with("jar") {
+        } else {
+            println!("Ignoring unknown file type {}", f);
+        }
+
     }
+    println!("Done!");
 }
 
-fn process_file(file_name: &String) {
+fn process_class_file(file_name: &String) {
     println!("Loading class file {}", file_name);
     println!("======================================================");
     let class = ClassReader::new_from_path(&file_name).unwrap();
+    process_class(&class);
+}
 
+fn process_class(class: &Class) {
     assert_eq!(0xCAFEBABE, class.magic);
     println!("class: {}", get_class_name(&class));
     println!("method count: {}", class.methods.len());
@@ -30,10 +39,7 @@ fn process_file(file_name: &String) {
         println!("\t\tcomplexity: {}", get_method_complexity(&method));
     }
 
-
-
     println!("======================================================");
-    println!("Done!");
 }
 
 /// Get constant from a pool, correcting for java's 1-based indexes.

@@ -1,0 +1,4 @@
+Java byte code to Moose parser
+===
+This is a playground project that seeks to extract some very basic information about java program and write a Moose file out of it.
+The data will be used for visualization.

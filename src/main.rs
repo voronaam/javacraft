@@ -1,9 +1,12 @@
 extern crate classreader;
 extern crate zip;
+extern crate flate2;
 
 use classreader::*;
 use std::env;
 use std::fs::File;
+use flate2::Compression;
+use flate2::write::ZlibEncoder;
 
 fn main() {
     env::args().nth(1).expect("usage: javamoose <class or jar file>...");
@@ -54,6 +57,8 @@ fn process_class(class: &Class) {
         println!("\t\tcomplexity: {}", get_method_complexity(&method));
     }
 
+    println!("======================================================");
+    output_sql(class);
     println!("======================================================");
 }
 
@@ -169,3 +174,44 @@ fn get_code_complexity(code: &Vec<(u32, Instruction)>) -> u16 {
     })
 }
 
+// Minetest/Freemine data model
+
+struct NodeBlob {
+    param0: [u16; 4096],
+    param1: [u8; 4096],
+    param2: [u8; 4096]
+}
+
+fn to_bytes(blob: NodeBlob) -> [u8; 16384] {
+  use std::mem;
+  unsafe { mem::transmute_copy::<NodeBlob, [u8; 16384]>(&blob) }
+}
+
+fn hex(v: &Vec<u8>) -> String {
+    use std::fmt::Write;
+    let mut s = String::new();
+    for &byte in v {
+        write!(&mut s, "{:02X}", byte).unwrap();
+    }
+    s
+}
+
+fn compute_position(x: i32, y: i32, z: i32) -> i32 {
+    x + 4096 * (y + 4096 * z)
+}
+
+fn output_sql(class: &Class) {
+    use std::io::prelude::*;
+    let blob = NodeBlob {
+        param0: [2; 4096],
+        param1: [0; 4096],
+        param2: [0; 4096]
+    };
+    let blob_encoded = to_bytes(blob);
+    let mut e = ZlibEncoder::new(Vec::new(), Compression::Default);
+    e.write(&blob_encoded);
+    let blob_compressed = e.finish().unwrap();
+    let blob_hex = hex(&blob_compressed);
+    let block = format!("19020202{}785E636460E458C3C0C0C0CCC091965F945B5C909A0CE489A465A6E6A44497A45694585BAB5483E8DA58068ECCBCB47C101BA8825BC91D06941858A0829C7031D7BC14CFBCB2D4BC92FCA24A2E0021791B940000000000024900000A0000000D64656661756C743A73746F6E650001000C64656661756C743A73616E640002000C64656661756C743A64697274000300036169720004001064656661756C743A646972745F6472790005001764656661756C743A646972745F776974685F67726173730006001564656661756C743A77617465725F666C6F77696E670007000F64656661756C743A67726173735F310008001164656661756C743A7369676E5F77616C6C0009000E64656661756C743A67726176656C0A0000", blob_hex);
+    println!("INSERT INTO \"blocks\" VALUES({},X'{}');", compute_position(0, 1, 0), block);
+}

@@ -182,9 +182,20 @@ struct NodeBlob {
     param2: [u8; 4096]
 }
 
-fn to_bytes(blob: NodeBlob) -> [u8; 16384] {
-  use std::mem;
-  unsafe { mem::transmute_copy::<NodeBlob, [u8; 16384]>(&blob) }
+fn to_bytes(blob: &NodeBlob) -> Vec<u8> {
+    let mut vec: Vec<u8> = Vec::new();
+    for i in 0..4096 {
+        let p = blob.param0[i];
+        vec.push((p >> 8) as u8);
+        vec.push(p as u8);
+    }
+    for i in 0..4096 {
+        vec.push(blob.param1[i]);
+    }
+    for i in 0..4096 {
+        vec.push(blob.param2[i]);
+    }
+    vec
 }
 
 fn hex(v: &Vec<u8>) -> String {
@@ -200,18 +211,41 @@ fn compute_position(x: i32, y: i32, z: i32) -> i32 {
     x + 4096 * (y + 4096 * z)
 }
 
-fn output_sql(class: &Class) {
+fn output_blob(blob: &NodeBlob, pos: i32) {
     use std::io::prelude::*;
-    let blob = NodeBlob {
-        param0: [2; 4096],
-        param1: [0; 4096],
-        param2: [0; 4096]
-    };
     let blob_encoded = to_bytes(blob);
     let mut e = ZlibEncoder::new(Vec::new(), Compression::Default);
     e.write(&blob_encoded);
     let blob_compressed = e.finish().unwrap();
     let blob_hex = hex(&blob_compressed);
     let block = format!("19020202{}785E636460E458C3C0C0C0CCC091965F945B5C909A0CE489A465A6E6A44497A45694585BAB5483E8DA58068ECCBCB47C101BA8825BC91D06941858A0829C7031D7BC14CFBCB2D4BC92FCA24A2E0021791B940000000000024900000A0000000D64656661756C743A73746F6E650001000C64656661756C743A73616E640002000C64656661756C743A64697274000300036169720004001064656661756C743A646972745F6472790005001764656661756C743A646972745F776974685F67726173730006001564656661756C743A77617465725F666C6F77696E670007000F64656661756C743A67726173735F310008001164656661756C743A7369676E5F77616C6C0009000E64656661756C743A67726176656C0A0000", blob_hex);
-    println!("INSERT INTO \"blocks\" VALUES({},X'{}');", compute_position(0, 1, 0), block);
+    println!("INSERT INTO \"blocks\" VALUES({},X'{}');", pos, block);
+}
+
+fn output_sql(class: &Class) {
+    // create base
+    let blob = NodeBlob {
+        param0: [0xe; 4096],
+        param1: [0; 4096],
+        param2: [0; 4096]
+    };
+    output_blob(&blob, compute_position(0, 1, 0));
+    // create our class
+    let mut parr = [0x3; 4096];
+    // The location of a node in each of those arrays is (z*16*16 + y*16 + x)
+    for x in 4..8 {
+        for y in 4..8 {
+            for z in 4..8 {
+                let i = (z * 16 + y) * 16 + x;
+                parr[i] = 0x0;
+            }
+        }
+    }
+    let blob2 = NodeBlob {
+        param0: parr,
+        param1: [0; 4096],
+        param2: [0; 4096]
+    };
+    output_blob(&blob2, compute_position(0, 2, 0));
+
 }

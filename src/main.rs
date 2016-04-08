@@ -6,9 +6,66 @@ extern crate rusqlite;
 use classreader::*;
 use std::env;
 use std::fs::File;
+use std::collections::HashMap;
+use std::collections::hash_map::Entry::{Occupied, Vacant};
 use flate2::Compression;
 use flate2::write::ZlibEncoder;
 use rusqlite::Connection;
+
+#[derive(Debug)]
+struct Building {
+    name:   String,
+    width:  u16,
+    depth:  u16,
+    height: u16
+}
+
+impl Building {
+    fn new(name: &str) -> Building {
+        Building {
+            name: name.to_string(),
+            width: 1,
+            depth: 1,
+            height: 1
+        }
+    }
+
+}
+
+#[derive(Debug)]
+struct Package {
+    name:  String,
+    width: u16,
+    depth: u16,
+    packages:  HashMap<String, Package>,
+    buildings: Vec<Building>
+}
+
+impl Package {
+    /// Create a new Package.
+    fn new(name: &str) -> Package {
+        Package {
+            name: name.to_string(),
+            width: 1,
+            depth: 1,
+            packages: HashMap::new(),
+            buildings: Vec::new()
+        }
+    }
+    /// Add a class or package to this package
+    fn add(&mut self, names: &[&str]) {
+        if names.len() == 1 {
+            self.buildings.push(Building::new(names[0]));
+        } else {
+            match names.split_first() {
+                Some((head, tail)) => {
+                    self.packages.entry(head.to_string()).or_insert_with(|| Package::new(head)).add(&tail);
+                },
+                _ => {}
+            }
+        }
+    }
+}
 
 fn main() {
     env::args().nth(1).expect("usage: javamoose <class or jar file>...");
@@ -23,10 +80,17 @@ fn main() {
         } else {
             println!("Ignoring unknown file type {}", f);
         }
-
     }
     if classes.len() > 0 {
         println!("======================================================");
+        let mut root_pkg = Package::new("_root_");
+        for c in &classes {
+            let name = get_class_name(&c);
+            let names: Vec<&str> = name.split('/').collect();
+            root_pkg.add(&names);
+        }
+        println!("{:?}", root_pkg);
+        /*
         let mut max_methods = classes[0].methods.len();
         for c in &classes {
             let methods = c.methods.len();
@@ -42,6 +106,7 @@ fn main() {
             index = index + 1;
         }
         conn.close().unwrap();
+        */
     }
     println!("Done!");
 }

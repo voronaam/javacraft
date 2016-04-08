@@ -1,12 +1,14 @@
 extern crate classreader;
 extern crate zip;
 extern crate flate2;
+extern crate rusqlite;
 
 use classreader::*;
 use std::env;
 use std::fs::File;
 use flate2::Compression;
 use flate2::write::ZlibEncoder;
+use rusqlite::Connection;
 
 fn main() {
     env::args().nth(1).expect("usage: javamoose <class or jar file>...");
@@ -32,11 +34,14 @@ fn main() {
                 max_methods = methods;
             }
         }
+        // Open DB connection
+        let conn = Connection::open("/media/data/source/freeminer/worlds/world/map.sqlite").unwrap();
         let mut index = 1;
         for c in &classes {
-            output_sql(&c, index, max_methods);
+            output_sql(&c, &conn, index, max_methods);
             index = index + 1;
         }
+        conn.close().unwrap();
     }
     println!("Done!");
 }
@@ -274,25 +279,25 @@ fn node_pos(x: usize, y: usize, z: usize) -> usize {
     (z * 16 + y) * 16 + x
 }
 
-fn output_blob(blob: &NodeBlob, pos: i32, sign: &str, sign_pos: usize) {
+fn output_blob(blob: &NodeBlob, conn: &Connection, pos: i32, sign: &str, sign_pos: usize) {
     use std::io::prelude::*;
     let blob_encoded = to_bytes(blob);
     let mut e = ZlibEncoder::new(Vec::new(), Compression::Default);
-    e.write(&blob_encoded);
+    e.write(&blob_encoded).unwrap();
     let blob_compressed = e.finish().unwrap();
     let blob_hex = hex(&blob_compressed);
     
     let meta_encoded = meta_bytes(sign, sign_pos as u16);
     let mut e1 = ZlibEncoder::new(Vec::new(), Compression::Default);
-    e1.write(&meta_encoded);
+    e1.write(&meta_encoded).unwrap();
     let meta_compressed = e1.finish().unwrap();
     let meta_hex = hex(&meta_compressed);
     let block = format!("19060202{}{}0000000000024900000A0000000D64656661756C743A73746F6E650001000C64656661756C743A73616E640002000C64656661756C743A64697274000300036169720004001064656661756C743A646972745F6472790005001764656661756C743A646972745F776974685F67726173730006001564656661756C743A77617465725F666C6F77696E670007000F64656661756C743A67726173735F310008001164656661756C743A7369676E5F77616C6C0009000E64656661756C743A67726176656C0A0000", blob_hex, meta_hex);
-    println!("DELETE FROM \"blocks\" WHERE pos = {};", pos);
-    println!("INSERT INTO \"blocks\" VALUES({},X'{}');", pos, block);
+    conn.execute(&format!("DELETE FROM blocks WHERE pos = {};", pos), &[]).unwrap();
+    conn.execute(&format!("INSERT INTO blocks VALUES({},X'{}');", pos, block), &[]).unwrap();
 }
 
-fn output_sql(class: &Class, offset: i32, scale: usize) {
+fn output_sql(class: &Class, conn: &Connection, offset: i32, scale: usize) {
     if class.methods.len() == 0 {
         return;
     }
@@ -302,7 +307,7 @@ fn output_sql(class: &Class, offset: i32, scale: usize) {
         param1: [0; 4096],
         param2: [0; 4096]
     };
-    output_blob(&blob, compute_position(0 + offset * 2, 1, 0), "", node_pos(0, 0, 0));
+    output_blob(&blob, conn, compute_position(0 + offset * 2, 1, 0), "", node_pos(0, 0, 0));
     // create our class
     let mut parr = [0x3 as u16; 4096];
     let mut parr2 = [0x0 as u8; 4096];
@@ -329,6 +334,6 @@ fn output_sql(class: &Class, offset: i32, scale: usize) {
         param1: parr2,
         param2: parr3
     };
-    output_blob(&blob2, compute_position(0 + offset * 2, 2, 0), &get_class_name(&class), sign_pos);
+    output_blob(&blob2, conn, compute_position(0 + offset * 2, 2, 0), &get_class_name(&class), sign_pos);
 
 }

@@ -5,9 +5,7 @@ use classreader::*;
 use std::env;
 use std::fs::File;
 
-#[path = "codecity.rs"]
 mod codecity;
-
 mod freeminer;
 
 fn main() {

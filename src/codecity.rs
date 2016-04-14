@@ -102,15 +102,6 @@ enum Direction {
     Depth
 }
 
-#[derive(Debug)]
-pub struct Package {
-    name:  String,
-    width: u16,
-    depth: u16,
-    packages:  HashMap<String, Package>,
-    buildings: Vec<Building>
-}
-
 struct PackState {
     // Total aread
     width: u16,
@@ -125,20 +116,27 @@ struct PackState {
     dir: Direction
 }
 
+#[derive(Debug)]
+pub struct Package {
+    name:  String,
+    rect: Rect,
+    packages:  HashMap<String, Package>,
+    buildings: Vec<Building>
+}
+
 impl Package {
     /// Create a new Package.
     pub fn new(name: &str) -> Package {
         Package {
             name: name.to_string(),
-            width: 1,
-            depth: 1,
+            rect: Rect::new(1, 1),
             packages: HashMap::new(),
             buildings: Vec::new()
         }
     }
 
     fn size(self: &Package) -> (u16, u16) {
-        (self.width, self.depth)
+        (self.rect.width, self.rect.depth)
     }
 
     /// Add a class or package to this package
@@ -161,8 +159,8 @@ impl Package {
             ch.pack();
         }
         let mut state = PackState {
-            width: self.width,
-            depth: self.depth,
+            width: self.rect.width,
+            depth: self.rect.depth,
             free_w: 0,
             free_d: 0,
             cur_w: 1,
@@ -170,15 +168,21 @@ impl Package {
             dir: Direction::Width
         };
 
-        // TODO Packages
+        // Packages
+        let mut packages: Vec<&mut Package> = self.packages.iter_mut().map(|(_, v)| v).collect();
+        packages.sort_by_key(|p| p.rect.area());
+        packages.reverse();
+        for p in &mut packages {
+            p.rect.place(&mut state);
+        }
         // Buildings
         self.buildings.sort_by_key(|b| b.rect.area());
         self.buildings.reverse();
         for b in &mut self.buildings {
             b.rect.place(&mut state);
         }
-        self.width = state.width;
-        self.depth = state.depth;
+        self.rect.width = state.width;
+        self.rect.depth = state.depth;
     }
 
 }

@@ -31,6 +31,11 @@ impl Building {
     }
 }
 
+enum Direction {
+    Width,
+    Depth
+}
+
 #[derive(Debug)]
 pub struct Package {
     name:  String,
@@ -64,7 +69,7 @@ impl Package {
             }
         }
     }
-    
+
     /// Pack own members for the nice rendering
     fn pack(&mut self) {
         for (_, ch) in &mut self.packages {
@@ -74,28 +79,54 @@ impl Package {
         let mut free_d = 0;
         let mut cur_w = 1;
         let mut cur_d = 1;
+        let mut dir = Direction::Width;
         // TODO Packages
         // Buildings
         self.buildings.sort_by_key(|b| b.width * b.depth);
         self.buildings.reverse();
         for b in &mut self.buildings {
-            // println!("Used: {}x{} free: {}x{} placing {}x{}", cur_w, cur_d, free_w, free_d, b.width, b.depth);
-            if b.width >= free_w || b.depth >= free_d {
-                b.pos_w = self.width;
-                b.pos_d = 1;
-                cur_w = self.width;
-                cur_d = 1 + b.depth;
-                // grow by width always for now
-                self.width += b.width + 1;
-                self.depth = cmp::max(self.depth, b.depth + 2);
-                free_w = b.width;
-                free_d = self.depth - b.depth - 2;
+            println!("Used: {}x{} free: {}x{} placing {}x{}", cur_w, cur_d, free_w, free_d, b.width, b.depth);
+            if b.width > free_w || b.depth > free_d {
+                // decide the direction for growth
+                if self.width <= self.depth {
+                    // Grow by width
+                    dir = Direction::Width;
+                    b.pos_w = self.width;
+                    b.pos_d = 1;
+                    cur_w = self.width;
+                    cur_d = 2 + b.depth;
+                    self.width += b.width + 1;
+                    self.depth = cmp::max(self.depth, b.depth + 2);
+                    free_w = b.width;
+                    free_d = self.depth - b.depth - 2;
+                } else {
+                    // Grow by depth
+                    dir = Direction::Depth;
+                    b.pos_d = self.depth;
+                    b.pos_w = 1;
+                    cur_d = self.depth;
+                    cur_w = 2 + b.width;
+                    self.depth += b.depth + 1;
+                    self.width = cmp::max(self.width, b.width + 2);
+                    free_d = b.depth;
+                    free_w = self.width - b.width - 2;
+                }
             } else {
                 // Enough room
-                b.pos_w = cur_w;
-                b.pos_d = cur_d;
-                free_d -= b.depth;
-                cur_d += b.depth;
+                match dir {
+                    Direction::Width => {
+                        b.pos_w = cur_w;
+                        b.pos_d = cur_d;
+                        free_d -= b.depth;
+                        cur_d += b.depth;
+                    }
+                    Direction::Depth => {
+                        b.pos_d = cur_d;
+                        b.pos_w = cur_w;
+                        free_w -= b.width;
+                        cur_w += b.width;
+                    }
+                }
             }
         }
     }
@@ -242,18 +273,40 @@ fn get_code_complexity(code: &Vec<(u32, Instruction)>) -> u16 {
 //*****************************
 // Unit tests
 
+fn mock(name: &str, w: u16, d: u16) -> Building {
+  Building {
+    name: name.to_string(),
+    width: w,
+    depth: d,
+    height: 0,
+    pos_w: 0,
+    pos_d: 0
+  }
+}
+
+
+#[test]
+fn pack_4_singles() {
+    let mut pkg = Package::new("_root_");
+    for _ in 0..4 {
+        pkg.buildings.push(mock("a", 1, 1));
+    }
+    pkg.pack();
+    println!("{:?}", pkg);
+    for b in &pkg.buildings {
+        println!("{:?}", b);
+    }
+    assert!(pkg.width == 5);
+    assert!(pkg.depth == 5);
+    // Make sure the last building is in the corner
+    assert!(pkg.buildings[3].pos_w == 3);
+    assert!(pkg.buildings[3].pos_d == 3);
+    
+
+}
+
 #[test]
 fn pack_buildings() {
-    fn mock(name: &str, w: u16, d: u16) -> Building {
-        Building {
-            name: name.to_string(),
-            width: w,
-            depth: d,
-            height: 0,
-            pos_w: 0,
-            pos_d: 0
-        }
-    };
     let mut pkg = Package::new("_root_");
     pkg.buildings.push(mock("b", 8, 3));
     pkg.buildings.push(mock("c", 4, 2));
@@ -266,5 +319,5 @@ fn pack_buildings() {
     println!("{:?}", pkg);
     pkg.pack();
     println!("{:?}", pkg);
-    assert!(false);
+    assert!(true);
 }

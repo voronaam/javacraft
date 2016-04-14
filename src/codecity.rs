@@ -29,6 +29,10 @@ impl Building {
             pos_d: 0
         }
     }
+
+    fn pos(self: &Building) -> (u16, u16) {
+        (self.pos_w, self.pos_d)
+    }
 }
 
 enum Direction {
@@ -56,6 +60,11 @@ impl Package {
             buildings: Vec::new()
         }
     }
+
+    fn size(self: &Package) -> (u16, u16) {
+        (self.width, self.depth)
+    }
+
     /// Add a class or package to this package
     fn add(&mut self, names: &[&str], class: &Class) {
         if names.len() == 1 {
@@ -85,7 +94,7 @@ impl Package {
         self.buildings.sort_by_key(|b| b.width * b.depth);
         self.buildings.reverse();
         for b in &mut self.buildings {
-            println!("Used: {}x{} free: {}x{} placing {}x{}", cur_w, cur_d, free_w, free_d, b.width, b.depth);
+            // println!("Used: {}x{} free: {}x{} placing {}x{}", cur_w, cur_d, free_w, free_d, b.width, b.depth);
             if b.width > free_w || b.depth > free_d {
                 // decide the direction for growth
                 if self.width <= self.depth {
@@ -284,6 +293,14 @@ fn mock(name: &str, w: u16, d: u16) -> Building {
   }
 }
 
+/// A function to print out details about placement
+fn debug_test(pkg: &Package) {
+    println!("{:?}", pkg);
+    for b in &pkg.buildings {
+        println!("{:?}", b);
+    }
+}
+
 
 #[test]
 fn pack_4_singles() {
@@ -292,15 +309,10 @@ fn pack_4_singles() {
         pkg.buildings.push(mock("a", 1, 1));
     }
     pkg.pack();
-    println!("{:?}", pkg);
-    for b in &pkg.buildings {
-        println!("{:?}", b);
-    }
-    assert!(pkg.width == 5);
-    assert!(pkg.depth == 5);
+    debug_test(&pkg);
+    assert!(pkg.size() == (5, 5));
     // Make sure the last building is in the corner
-    assert!(pkg.buildings[3].pos_w == 3);
-    assert!(pkg.buildings[3].pos_d == 3);
+    assert!(pkg.buildings[3].pos() == (3, 3));
 }
 
 #[test]
@@ -310,15 +322,9 @@ fn pack_5_singles() {
         pkg.buildings.push(mock("a", 1, 1));
     }
     pkg.pack();
-    println!("{:?}", pkg);
-    for b in &pkg.buildings {
-        println!("{:?}", b);
-    }
-    assert!(pkg.width == 7);
-    assert!(pkg.depth == 5);
-    // Make sure the last building is in the corner
-    assert!(pkg.buildings[4].pos_w == 5);
-    assert!(pkg.buildings[4].pos_d == 1);
+    debug_test(&pkg);
+    assert!(pkg.size() == (7, 5));
+    assert!(pkg.buildings[4].pos() == (5, 1));
 }
 
 #[test]
@@ -328,15 +334,10 @@ fn pack_16_singles() {
         pkg.buildings.push(mock("a", 1, 1));
     }
     pkg.pack();
-    println!("{:?}", pkg);
-    for b in &pkg.buildings {
-        println!("{:?}", b);
-    }
-    assert!(pkg.width == 9);
-    assert!(pkg.depth == 9);
+    debug_test(&pkg);
+    assert!(pkg.size() == (9, 9));
     // Make sure the last building is in the corner
-    assert!(pkg.buildings[15].pos_w == 7);
-    assert!(pkg.buildings[15].pos_d == 7);
+    assert!(pkg.buildings[15].pos() == (7, 7));
 }
 
 #[test]
@@ -347,15 +348,10 @@ fn pack_smart_square_width() {
         pkg.buildings.push(mock("a", 1, 1));
     }
     pkg.pack();
-    println!("{:?}", pkg);
-    for b in &pkg.buildings {
-        println!("{:?}", b);
-    }
-    assert!(pkg.width == 5);
-    assert!(pkg.depth == 5);
+    debug_test(&pkg);
+    assert!(pkg.size() == (5, 5));
     // Make sure the last building is in the corner
-    assert!(pkg.buildings[2].pos_w == 3);
-    assert!(pkg.buildings[2].pos_d == 3);
+    assert!(pkg.buildings[2].pos() == (3, 3));
 }
 
 #[test]
@@ -369,8 +365,15 @@ fn pack_buildings() {
     pkg.buildings.push(mock("e2", 1, 1));
     pkg.buildings.push(mock("e3", 1, 1));
     println!("Starting the test");
-    println!("{:?}", pkg);
     pkg.pack();
-    println!("{:?}", pkg);
-    assert!(true);
+    debug_test(&pkg);
+    assert!(pkg.size() == (17, 13));
+    assert!(pkg.buildings[0].pos() == (1, 1));
+    assert!(pkg.buildings[1].pos() == (1, 9));
+    assert!(pkg.buildings[2].pos() == (12, 1));
+    assert!(pkg.buildings[3].pos() == (12, 4));
+    assert!(pkg.buildings[4].pos() == (12, 7));
+    assert!(pkg.buildings[5].pos() == (12, 9));
+    assert!(pkg.buildings[6].pos() == (12, 11));
+
 }

@@ -8,30 +8,46 @@ use std::collections::HashMap;
 use std::cmp;
 
 #[derive(Debug)]
-pub struct Building {
-    name:   String,
+pub struct Rect {
+    // Dimenstions
     width:  u16,
     depth:  u16,
-    height: u16,
     // Placement
     pos_w:  u16,
     pos_d:  u16
+}
+
+impl Rect {
+    fn new(w: u16, d: u16) -> Rect {
+        Rect {
+            width: w,
+            depth: d,
+            pos_w: 0,
+            pos_d: 0
+        }
+    }
+
+    fn area(self: &Rect) -> u16 {self.width * self.depth}
+}
+
+#[derive(Debug)]
+pub struct Building {
+    name:   String,
+    rect:   Rect,
+    height: u16,
 }
 
 impl Building {
     fn new(class: &Class) -> Building {
         Building {
             name: get_class_name(class).to_string(),
-            width: class.methods.len() as u16 + 1,
-            depth: class.fields.len() as u16 + 1,
+            rect: Rect::new(class.methods.len() as u16 + 1, class.fields.len() as u16 + 1),
             height: get_total_code_size(&class) as u16 / 10 + 1,
-            pos_w: 0,
-            pos_d: 0
         }
     }
 
     fn pos(self: &Building) -> (u16, u16) {
-        (self.pos_w, self.pos_d)
+        (self.rect.pos_w, self.rect.pos_d)
     }
 }
 
@@ -47,6 +63,14 @@ pub struct Package {
     depth: u16,
     packages:  HashMap<String, Package>,
     buildings: Vec<Building>
+}
+
+struct PackState {
+    free_w: u16,
+    free_d: u16,
+    cur_w: u16,
+    cur_d: u16,
+    dir: Direction
 }
 
 impl Package {
@@ -84,57 +108,67 @@ impl Package {
         for (_, ch) in &mut self.packages {
             ch.pack();
         }
-        let mut free_w = 0;
-        let mut free_d = 0;
-        let mut cur_w = 1;
-        let mut cur_d = 1;
-        let mut dir = Direction::Width;
+        let mut state = PackState {
+            free_w: 0,
+            free_d: 0,
+            cur_w: 1,
+            cur_d: 1,
+            dir: Direction::Width
+        };
+
         // TODO Packages
         // Buildings
-        self.buildings.sort_by_key(|b| b.width * b.depth);
+        self.buildings.sort_by_key(|b| b.rect.area());
         self.buildings.reverse();
         for b in &mut self.buildings {
-            // println!("Used: {}x{} free: {}x{} placing {}x{}", cur_w, cur_d, free_w, free_d, b.width, b.depth);
-            if b.width > free_w || b.depth > free_d {
-                // decide the direction for growth
-                if self.width <= self.depth {
-                    // Grow by width
-                    dir = Direction::Width;
-                    b.pos_w = self.width;
-                    b.pos_d = 1;
-                    cur_w = self.width;
-                    cur_d = 2 + b.depth;
-                    self.width += b.width + 1;
-                    self.depth = cmp::max(self.depth, b.depth + 2);
-                    free_w = b.width;
-                    free_d = self.depth - b.depth - 2;
-                } else {
-                    // Grow by depth
-                    dir = Direction::Depth;
-                    b.pos_d = self.depth;
-                    b.pos_w = 1;
-                    cur_d = self.depth;
-                    cur_w = 2 + b.width;
-                    self.depth += b.depth + 1;
-                    self.width = cmp::max(self.width, b.width + 2);
-                    free_d = b.depth;
-                    free_w = self.width - b.width - 2;
-                }
+            let mut r = Rect {.. b.rect};
+            self.place_rectangle(&mut state, &mut r);
+            b.rect.pos_w = r.pos_w;
+            b.rect.pos_d = r.pos_d;
+        }
+    }
+
+    fn place_rectangle(self: &mut Package, state: &mut PackState, b: &mut Rect) {
+        // println!("Used: {}x{} free: {}x{} placing {}x{}", cur_w, cur_d, free_w, free_d, b.width, b.depth);
+        if b.width > state.free_w || b.depth > state.free_d {
+            // decide the direction for growth
+            if self.width <= self.depth {
+                // Grow by width
+                state.dir = Direction::Width;
+                b.pos_w = self.width;
+                b.pos_d = 1;
+                state.cur_w = self.width;
+                state.cur_d = 2 + b.depth;
+                self.width += b.width + 1;
+                self.depth = cmp::max(self.depth, b.depth + 2);
+                state.free_w = b.width;
+                state.free_d = self.depth - b.depth - 2;
             } else {
-                // Enough room
-                match dir {
-                    Direction::Width => {
-                        b.pos_w = cur_w;
-                        b.pos_d = cur_d;
-                        free_d -= b.depth + 1;
-                        cur_d += b.depth + 1;
-                    }
-                    Direction::Depth => {
-                        b.pos_d = cur_d;
-                        b.pos_w = cur_w;
-                        free_w -= b.width + 1;
-                        cur_w += b.width + 1;
-                    }
+                // Grow by depth
+                state.dir = Direction::Depth;
+                b.pos_d = self.depth;
+                b.pos_w = 1;
+                state.cur_d = self.depth;
+                state.cur_w = 2 + b.width;
+                self.depth += b.depth + 1;
+                self.width = cmp::max(self.width, b.width + 2);
+                state.free_d = b.depth;
+                state.free_w = self.width - b.width - 2;
+            }
+        } else {
+            // Enough room
+            match state.dir {
+                Direction::Width => {
+                    b.pos_w = state.cur_w;
+                    b.pos_d = state.cur_d;
+                    state.free_d -= b.depth + 1;
+                    state.cur_d += b.depth + 1;
+                }
+                Direction::Depth => {
+                    b.pos_d = state.cur_d;
+                    b.pos_w = state.cur_w;
+                    state.free_w -= b.width + 1;
+                    state.cur_w += b.width + 1;
                 }
             }
         }
@@ -285,11 +319,8 @@ fn get_code_complexity(code: &Vec<(u32, Instruction)>) -> u16 {
 fn mock(name: &str, w: u16, d: u16) -> Building {
   Building {
     name: name.to_string(),
-    width: w,
-    depth: d,
-    height: 0,
-    pos_w: 0,
-    pos_d: 0
+    rect: Rect::new(w, d),
+    height: 0
   }
 }
 

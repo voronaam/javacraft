@@ -1,17 +1,16 @@
 //*****************************
 // Minetest/Freemine data model
 
-extern crate classreader;
 extern crate rusqlite;
 extern crate flate2;
 
 use self::flate2::Compression;
 use self::flate2::write::ZlibEncoder;
 use self::rusqlite::Connection;
-use self::classreader::Class;
 
+use codecity::*;
 
-pub fn write_to_freeminer(classes: &Vec<Class>) {
+pub fn write_to_freeminer(root: &Package) {
     let mut max_methods = classes[0].methods.len();
     for c in classes {
         let methods = c.methods.len();
@@ -117,7 +116,7 @@ fn output_blob(blob: &NodeBlob, conn: &Connection, pos: i32, sign: &str, sign_po
     e.write(&blob_encoded).unwrap();
     let blob_compressed = e.finish().unwrap();
     let blob_hex = hex(&blob_compressed);
-    
+
     let meta_encoded = meta_bytes(sign, sign_pos as u16);
     let mut e1 = ZlibEncoder::new(Vec::new(), Compression::Default);
     e1.write(&meta_encoded).unwrap();

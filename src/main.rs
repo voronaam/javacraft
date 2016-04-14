@@ -25,8 +25,7 @@ fn main() {
     if classes.len() > 0 {
         println!("======================================================");
         let root_pkg = codecity::build_packages(&classes);
-        println!("{:?}", root_pkg);
-        freeminer::write_to_freeminer(&classes);
+        freeminer::write_to_freeminer(&root_pkg);
     }
     println!("Done!");
 }

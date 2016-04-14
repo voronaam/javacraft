@@ -338,12 +338,14 @@ fn mock(name: &str, w: u16, d: u16) -> Building {
 
 /// A function to print out details about placement
 fn debug_test(pkg: &Package) {
-    println!("{:?}", pkg);
+    println!("Package {}: {:?}", pkg.name, pkg.rect);
+    for (_, p) in &pkg.packages {
+        debug_test(p);
+    }
     for b in &pkg.buildings {
         println!("{:?}", b);
     }
 }
-
 
 #[test]
 fn pack_4_singles() {
@@ -418,5 +420,24 @@ fn pack_buildings() {
     assert!(pkg.buildings[4].pos() == (12, 7));
     assert!(pkg.buildings[5].pos() == (12, 9));
     assert!(pkg.buildings[6].pos() == (12, 11));
+}
 
+#[test]
+fn pack_packages() {
+    let mut root = Package::new("_root_");
+    let mut org = Package::new("org");
+    let mut com = Package::new("com");
+    for _ in 0..4 {
+        org.buildings.push(mock("a", 1, 1));
+    }
+    for _ in 0..2 {
+        com.buildings.push(mock("b", 1, 1));
+    }
+    root.packages.insert("org".to_string(), org);
+    root.packages.insert("com".to_string(), com);
+    root.pack();
+    debug_test(&root);
+    assert!(root.size() == (13, 7));
+    assert!(root.packages.get("org").unwrap().size() == (5, 5));
+    assert!(root.packages.get("com").unwrap().size() == (5, 3));
 }

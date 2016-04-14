@@ -117,13 +117,13 @@ impl Package {
                     Direction::Width => {
                         b.pos_w = cur_w;
                         b.pos_d = cur_d;
-                        free_d -= b.depth;
+                        free_d -= b.depth + 1;
                         cur_d += b.depth;
                     }
                     Direction::Depth => {
                         b.pos_d = cur_d;
                         b.pos_w = cur_w;
-                        free_w -= b.width;
+                        free_w -= b.width + 1;
                         cur_w += b.width;
                     }
                 }
@@ -301,8 +301,43 @@ fn pack_4_singles() {
     // Make sure the last building is in the corner
     assert!(pkg.buildings[3].pos_w == 3);
     assert!(pkg.buildings[3].pos_d == 3);
-    
+}
 
+#[test]
+fn pack_5_singles() {
+    let mut pkg = Package::new("_root_");
+    for _ in 0..5 {
+        pkg.buildings.push(mock("a", 1, 1));
+    }
+    pkg.pack();
+    println!("{:?}", pkg);
+    for b in &pkg.buildings {
+        println!("{:?}", b);
+    }
+    assert!(pkg.width == 7);
+    assert!(pkg.depth == 5);
+    // Make sure the last building is in the corner
+    assert!(pkg.buildings[4].pos_w == 5);
+    assert!(pkg.buildings[4].pos_d == 1);
+}
+
+#[test]
+fn pack_smart_square_width() {
+    let mut pkg = Package::new("_root_");
+    pkg.buildings.push(mock("w", 3, 1));
+    for _ in 0..2 {
+        pkg.buildings.push(mock("a", 1, 1));
+    }
+    pkg.pack();
+    println!("{:?}", pkg);
+    for b in &pkg.buildings {
+        println!("{:?}", b);
+    }
+    assert!(pkg.width == 5);
+    assert!(pkg.depth == 5);
+    // Make sure the last building is in the corner
+    assert!(pkg.buildings[2].pos_w == 3);
+    assert!(pkg.buildings[2].pos_d == 3);
 }
 
 #[test]

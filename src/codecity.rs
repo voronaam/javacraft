@@ -28,6 +28,52 @@ impl Rect {
     }
 
     fn area(self: &Rect) -> u16 {self.width * self.depth}
+
+    fn place(self: &mut Rect, state: &mut PackState) {
+        // println!("Used: {}x{} free: {}x{} placing {}x{}", cur_w, cur_d, free_w, free_d, b.width, b.depth);
+        if self.width > state.free_w || self.depth > state.free_d {
+            // decide the direction for growth
+            if state.width <= state.depth {
+                // Grow by width
+                state.dir = Direction::Width;
+                self.pos_w = state.width;
+                self.pos_d = 1;
+                state.cur_w = state.width;
+                state.cur_d = 2 + self.depth;
+                state.width += self.width + 1;
+                state.depth = cmp::max(state.depth, self.depth + 2);
+                state.free_w = self.width;
+                state.free_d = state.depth - self.depth - 2;
+            } else {
+                // Grow by depth
+                state.dir = Direction::Depth;
+                self.pos_d = state.depth;
+                self.pos_w = 1;
+                state.cur_d = state.depth;
+                state.cur_w = 2 + self.width;
+                state.depth += self.depth + 1;
+                state.width = cmp::max(state.width, self.width + 2);
+                state.free_d = self.depth;
+                state.free_w = state.width - self.width - 2;
+            }
+        } else {
+            // Enough room
+            match state.dir {
+                Direction::Width => {
+                    self.pos_w = state.cur_w;
+                    self.pos_d = state.cur_d;
+                    state.free_d -= self.depth + 1;
+                    state.cur_d += self.depth + 1;
+                }
+                Direction::Depth => {
+                    self.pos_d = state.cur_d;
+                    self.pos_w = state.cur_w;
+                    state.free_w -= self.width + 1;
+                    state.cur_w += self.width + 1;
+                }
+            }
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -66,10 +112,16 @@ pub struct Package {
 }
 
 struct PackState {
+    // Total aread
+    width: u16,
+    depth: u16,
+    // Free in the corrent row
     free_w: u16,
     free_d: u16,
+    // Position of the next placement
     cur_w: u16,
     cur_d: u16,
+    // Direction we just grew the area
     dir: Direction
 }
 
@@ -109,6 +161,8 @@ impl Package {
             ch.pack();
         }
         let mut state = PackState {
+            width: self.width,
+            depth: self.depth,
             free_w: 0,
             free_d: 0,
             cur_w: 1,
@@ -121,58 +175,12 @@ impl Package {
         self.buildings.sort_by_key(|b| b.rect.area());
         self.buildings.reverse();
         for b in &mut self.buildings {
-            let mut r = Rect {.. b.rect};
-            self.place_rectangle(&mut state, &mut r);
-            b.rect.pos_w = r.pos_w;
-            b.rect.pos_d = r.pos_d;
+            b.rect.place(&mut state);
         }
+        self.width = state.width;
+        self.depth = state.depth;
     }
 
-    fn place_rectangle(self: &mut Package, state: &mut PackState, b: &mut Rect) {
-        // println!("Used: {}x{} free: {}x{} placing {}x{}", cur_w, cur_d, free_w, free_d, b.width, b.depth);
-        if b.width > state.free_w || b.depth > state.free_d {
-            // decide the direction for growth
-            if self.width <= self.depth {
-                // Grow by width
-                state.dir = Direction::Width;
-                b.pos_w = self.width;
-                b.pos_d = 1;
-                state.cur_w = self.width;
-                state.cur_d = 2 + b.depth;
-                self.width += b.width + 1;
-                self.depth = cmp::max(self.depth, b.depth + 2);
-                state.free_w = b.width;
-                state.free_d = self.depth - b.depth - 2;
-            } else {
-                // Grow by depth
-                state.dir = Direction::Depth;
-                b.pos_d = self.depth;
-                b.pos_w = 1;
-                state.cur_d = self.depth;
-                state.cur_w = 2 + b.width;
-                self.depth += b.depth + 1;
-                self.width = cmp::max(self.width, b.width + 2);
-                state.free_d = b.depth;
-                state.free_w = self.width - b.width - 2;
-            }
-        } else {
-            // Enough room
-            match state.dir {
-                Direction::Width => {
-                    b.pos_w = state.cur_w;
-                    b.pos_d = state.cur_d;
-                    state.free_d -= b.depth + 1;
-                    state.cur_d += b.depth + 1;
-                }
-                Direction::Depth => {
-                    b.pos_d = state.cur_d;
-                    b.pos_w = state.cur_w;
-                    state.free_w -= b.width + 1;
-                    state.cur_w += b.width + 1;
-                }
-            }
-        }
-    }
 }
 
 pub fn build_packages(classes: &Vec<Class>) -> Package {

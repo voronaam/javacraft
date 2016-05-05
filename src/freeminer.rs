@@ -8,24 +8,13 @@ extern crate flate2;
 use self::flate2::Compression;
 use self::flate2::write::ZlibEncoder;
 use self::rusqlite::Connection;
-use self::classreader::Class;
+use codecity::Package;
 
 
-pub fn write_to_freeminer(path: &String, classes: &Vec<Class>) {
-    let mut max_methods = classes[0].methods.len();
-    for c in classes {
-        let methods = c.methods.len();
-        if methods > max_methods {
-            max_methods = methods;
-        }
-    }
+pub fn write_to_freeminer(path: &String, root: &Package) {
     // Open DB connection
     let conn = Connection::open(path).unwrap();
-    let mut index = 1;
-    for c in classes {
-        output_sql(&c, &conn, index, max_methods);
-        index = index + 1;
-    }
+	output_sql(&conn, root);
     conn.close().unwrap();
 }
 
@@ -128,24 +117,21 @@ fn output_blob(blob: &NodeBlob, conn: &Connection, pos: i32, sign: &str, sign_po
     conn.execute(&format!("INSERT INTO blocks VALUES({},X'{}');", pos, block), &[]).unwrap();
 }
 
-fn output_sql(class: &Class, conn: &Connection, offset: i32, scale: usize) {
-    if class.methods.len() == 0 {
-        return;
-    }
+fn output_sql(conn: &Connection, package: &Package) {
     // create base
     let blob = NodeBlob {
         param0: [0xe; 4096],
         param1: [0; 4096],
         param2: [0; 4096]
     };
-    output_blob(&blob, conn, compute_position(0 + offset * 2, 1, 0), "", node_pos(0, 0, 0));
+    output_blob(&blob, conn, compute_position(0, 1, 0), "", node_pos(0, 0, 0));
     // create our class
     let mut parr = [0x3 as u16; 4096];
     let mut parr2 = [0x0 as u8; 4096];
     let mut parr3 = [0x0 as u8; 4096];
     // Let's create a block of proper size
     // The location of a node in each of those arrays is (z*16*16 + y*16 + x)
-    let height = (class.methods.len() - 1) * 16 / scale;
+    let height = 5; // (class.methods.len() - 1) * 16 / scale;
     for x in 4..8 {
         for y in 0..height {
             for z in 4..8 {
@@ -166,6 +152,9 @@ fn output_sql(class: &Class, conn: &Connection, offset: i32, scale: usize) {
         param2: parr3
     };
     // output_blob(&blob2, conn, compute_position(0 + offset * 2, 2, 0), &get_class_name(&class), sign_pos);
-    output_blob(&blob2, conn, compute_position(0 + offset * 2, 2, 0), "?", sign_pos);
+    output_blob(&blob2, conn, compute_position(0, 2, 0), &package.get_name(), sign_pos);
 
 }
+
+//*****************************
+// Unit tests

@@ -135,6 +135,10 @@ impl Package {
         }
     }
 
+    pub fn get_name(&self) -> &String {
+		return &self.name;
+	}
+
     fn size(self: &Package) -> (u16, u16) {
         (self.rect.width, self.rect.depth)
     }

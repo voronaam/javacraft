@@ -27,7 +27,7 @@ impl Rect {
         }
     }
 
-    fn area(self: &Rect) -> u16 {self.width * self.depth}
+    fn area(self: &Rect) -> u32 {self.width as u32 * self.depth as u32}
 
     fn place(self: &mut Rect, state: &mut PackState) {
         // println!("Used: {}x{} free: {}x{} placing {}x{}", cur_w, cur_d, free_w, free_d, b.width, b.depth);
@@ -62,13 +62,13 @@ impl Rect {
                 Direction::Width => {
                     self.pos_w = state.cur_w;
                     self.pos_d = state.cur_d;
-                    state.free_d -= self.depth + 1;
+                    state.free_d -= self.depth;
                     state.cur_d += self.depth + 1;
                 }
                 Direction::Depth => {
                     self.pos_d = state.cur_d;
                     self.pos_w = state.cur_w;
-                    state.free_w -= self.width + 1;
+                    state.free_w -= self.width;
                     state.cur_w += self.width + 1;
                 }
             }
@@ -92,9 +92,17 @@ impl Building {
         }
     }
 
-    fn pos(self: &Building) -> (u16, u16) {
+    pub fn position(self: &Building) -> (u16, u16) {
         (self.rect.pos_w, self.rect.pos_d)
     }
+
+    pub fn size(&self) -> (u16, u16) {
+        (self.rect.width, self.rect.depth)
+    }
+
+    pub fn height(&self) -> u16 {
+		return self.height;
+	}
 }
 
 enum Direction {
@@ -135,19 +143,32 @@ impl Package {
         }
     }
 
-    pub fn get_name(&self) -> &String {
+    pub fn name(&self) -> &String {
 		return &self.name;
 	}
 
-    fn size(self: &Package) -> (u16, u16) {
+    pub fn size(self: &Package) -> (u16, u16) {
         (self.rect.width, self.rect.depth)
     }
 
-    fn get_max_height(&self) -> u16 {
+    pub fn height(&self) -> u16 {
 		let bld_h = self.buildings.iter().map(|b| b.height).max().unwrap_or(0);
-		let pkg_h = self.packages.iter().map(|(_, v)| v.get_max_height()).max().unwrap_or(0);
+		let pkg_h = self.packages.iter().map(|(_, v)| v.height()).max().unwrap_or(0);
 		// Package has height 1 by itself
 		return 1u16 + cmp::max(bld_h, pkg_h);
+	}
+
+    pub fn position(&self) -> (u16, u16) {
+        (self.rect.pos_w, self.rect.pos_d)
+    }
+
+    pub fn packages(&self) -> Vec<&Package> {
+		let p: Vec<&Package> = self.packages.iter().map(|(_, v)| v).collect();
+		return p;
+	}
+
+	pub fn buildings(&self) -> &Vec<Building> {
+		return &self.buildings;
 	}
 
     /// Add a class or package to this package
@@ -205,6 +226,7 @@ pub fn build_packages(classes: &Vec<Class>) -> Package {
         let names: Vec<&str> = name.split('/').collect();
         root_pkg.add(&names, c);
     }
+    root_pkg.pack();
     return root_pkg;
 }
 
@@ -376,7 +398,7 @@ fn pack_4_singles() {
     debug_test(&pkg);
     assert!(pkg.size() == (5, 5));
     // Make sure the last building is in the corner
-    assert!(pkg.buildings[3].pos() == (3, 3));
+    assert!(pkg.buildings[3].position() == (3, 3));
 }
 
 #[test]
@@ -388,7 +410,7 @@ fn pack_5_singles() {
     pkg.pack();
     debug_test(&pkg);
     assert!(pkg.size() == (7, 5));
-    assert!(pkg.buildings[4].pos() == (5, 1));
+    assert!(pkg.buildings[4].position() == (5, 1));
 }
 
 #[test]
@@ -401,7 +423,7 @@ fn pack_16_singles() {
     debug_test(&pkg);
     assert!(pkg.size() == (9, 9));
     // Make sure the last building is in the corner
-    assert!(pkg.buildings[15].pos() == (7, 7));
+    assert!(pkg.buildings[15].position() == (7, 7));
 }
 
 #[test]
@@ -415,7 +437,7 @@ fn pack_smart_square_width() {
     debug_test(&pkg);
     assert!(pkg.size() == (5, 5));
     // Make sure the last building is in the corner
-    assert!(pkg.buildings[2].pos() == (3, 3));
+    assert!(pkg.buildings[2].position() == (3, 3));
 }
 
 #[test]
@@ -432,13 +454,13 @@ fn pack_buildings() {
     pkg.pack();
     debug_test(&pkg);
     assert!(pkg.size() == (17, 13));
-    assert!(pkg.buildings[0].pos() == (1, 1));
-    assert!(pkg.buildings[1].pos() == (1, 9));
-    assert!(pkg.buildings[2].pos() == (12, 1));
-    assert!(pkg.buildings[3].pos() == (12, 4));
-    assert!(pkg.buildings[4].pos() == (12, 7));
-    assert!(pkg.buildings[5].pos() == (12, 9));
-    assert!(pkg.buildings[6].pos() == (12, 11));
+    assert!(pkg.buildings[0].position() == (1, 1));
+    assert!(pkg.buildings[1].position() == (1, 9));
+    assert!(pkg.buildings[2].position() == (12, 1));
+    assert!(pkg.buildings[3].position() == (12, 4));
+    assert!(pkg.buildings[4].position() == (12, 7));
+    assert!(pkg.buildings[5].position() == (12, 9));
+    assert!(pkg.buildings[6].position() == (12, 11));
 }
 
 #[test]
@@ -474,18 +496,18 @@ fn get_max_height() {
     }
     root.packages.insert("org".to_string(), org);
     root.packages.insert("com".to_string(), com);
-    assert!(root.get_max_height() == 6);
+    assert!(root.height() == 6);
 }
 
 #[test]
 fn get_max_height_empty() {
     let root = Package::new("_root_");
-    assert!(root.get_max_height() == 1);
+    assert!(root.height() == 1);
 }
 
 #[test]
 fn get_max_height_buildings() {
     let mut root = Package::new("_root_");
     root.buildings.push(mockh(3));
-    assert!(root.get_max_height() == 4);
+    assert!(root.height() == 4);
 }

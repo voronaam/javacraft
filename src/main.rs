@@ -48,6 +48,7 @@ fn main() {
     if !classes.is_empty() && args.flag_map.is_some() {
         println!("======================================================");
         let root_pkg = codecity::build_packages(&classes);
+        println!("{:?}", root_pkg);
         freeminer::write_to_freeminer(&args.flag_map.unwrap(), &root_pkg);
     }
     println!("Done!");

@@ -4,18 +4,60 @@
 extern crate classreader;
 extern crate rusqlite;
 extern crate flate2;
+extern crate multiarray;
 
 use self::flate2::Compression;
 use self::flate2::write::ZlibEncoder;
 use self::rusqlite::Connection;
+use self::multiarray::{MultiArray, Dim3};
 use codecity::Package;
 
 
 pub fn write_to_freeminer(path: &String, root: &Package) {
+	let voxels = build_array(root);
     // Open DB connection
     let conn = Connection::open(path).unwrap();
 	output_sql(&conn, root);
     conn.close().unwrap();
+}
+
+fn build_array(root: &Package) -> MultiArray<u8, Dim3> {
+	use self::multiarray::*;
+	let height = root.height();
+	let (width, depth) = root.size();
+	// u8 for the future use, when we'll have more than just non-emptiness to track
+	let mut voxels = Array3D::new([width as usize, depth as usize, height as usize], 0 as u8);
+	fill_from_package(root, &mut voxels, 0);
+	return voxels;
+}
+
+fn fill_from_package(pkg: &Package, voxels: &mut MultiArray<u8, Dim3>, oz: usize) {
+	let (w, d) = pkg.size();
+	let (ox, oy) = pkg.position();
+	// Fill the package itself
+	for x in ox .. ox + w {
+		for y in oy .. oy + d {
+			voxels[[x as usize, y as usize, oz]] = 1;
+		}
+	}
+	// Fill the subpackages
+	for p in &pkg.packages() {
+		fill_from_package(p, voxels, oz + 1);
+	}
+	// Fill the buildings
+	for b in pkg.buildings() {
+		let (px, py) = b.position();
+		let (bw, bd) = b.size();
+		let h = b.height() as usize;
+		for x in px .. px + bw {
+			for y in py .. py + bd {
+				for z in oz + 1 .. oz + 1 + h {
+					voxels[[x as usize, y as usize, z]] = 1;
+				}
+			}
+		}
+	}
+
 }
 
 struct NodeBlob {
@@ -152,7 +194,7 @@ fn output_sql(conn: &Connection, package: &Package) {
         param2: parr3
     };
     // output_blob(&blob2, conn, compute_position(0 + offset * 2, 2, 0), &get_class_name(&class), sign_pos);
-    output_blob(&blob2, conn, compute_position(0, 2, 0), &package.get_name(), sign_pos);
+    output_blob(&blob2, conn, compute_position(0, 2, 0), &package.name(), sign_pos);
 
 }
 

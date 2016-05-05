@@ -143,6 +143,13 @@ impl Package {
         (self.rect.width, self.rect.depth)
     }
 
+    fn get_max_height(&self) -> u16 {
+		let bld_h = self.buildings.iter().map(|b| b.height).max().unwrap_or(0);
+		let pkg_h = self.packages.iter().map(|(_, v)| v.get_max_height()).max().unwrap_or(0);
+		// Package has height 1 by itself
+		return 1u16 + cmp::max(bld_h, pkg_h);
+	}
+
     /// Add a class or package to this package
     fn add(&mut self, names: &[&str], class: &Class) {
         if names.len() == 1 {
@@ -340,6 +347,14 @@ fn mock(name: &str, w: u16, d: u16) -> Building {
   }
 }
 
+fn mockh(h: u16) -> Building {
+  Building {
+    name: "?".to_string(),
+    rect: Rect::new(1, 1),
+    height: h
+  }
+}
+
 /// A function to print out details about placement
 fn debug_test(pkg: &Package) {
     println!("Package {}: {:?}", pkg.name, pkg.rect);
@@ -444,4 +459,33 @@ fn pack_packages() {
     assert!(root.size() == (13, 7));
     assert!(root.packages.get("org").unwrap().size() == (5, 5));
     assert!(root.packages.get("com").unwrap().size() == (5, 3));
+}
+
+#[test]
+fn get_max_height() {
+    let mut root = Package::new("_root_");
+    let mut org = Package::new("org");
+    let mut com = Package::new("com");
+    for _ in 0..4 {
+        org.buildings.push(mockh(3));
+    }
+    for _ in 0..2 {
+        com.buildings.push(mockh(4));
+    }
+    root.packages.insert("org".to_string(), org);
+    root.packages.insert("com".to_string(), com);
+    assert!(root.get_max_height() == 6);
+}
+
+#[test]
+fn get_max_height_empty() {
+    let root = Package::new("_root_");
+    assert!(root.get_max_height() == 1);
+}
+
+#[test]
+fn get_max_height_buildings() {
+    let mut root = Package::new("_root_");
+    root.buildings.push(mockh(3));
+    assert!(root.get_max_height() == 4);
 }

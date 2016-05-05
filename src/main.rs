@@ -22,7 +22,7 @@ fn main() {
             println!("Ignoring unknown file type {}", f);
         }
     }
-    if classes.len() > 0 {
+    if !classes.is_empty() {
         println!("======================================================");
         let root_pkg = codecity::build_packages(&classes);
         println!("{:?}", root_pkg);

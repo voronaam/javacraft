@@ -1,4 +1,9 @@
-Java byte code to Moose parser
+JVM byte code parser for FreeMiner/Minetest
 ===
-This is a playground project that seeks to extract some very basic information about java program and write a Moose file out of it.
-The data will be used for visualization.
+This is a playground project that seeks to extract some very basic information about java program and write a Freeminer/Minetest
+map out of it.
+
+This can be used as a way to bring to live and interactive visualization of any JVM (Java, Scala, etc) code.
+
+Current version outputs an SQL script that could be executed against an existing sqlite3 database defining the map.
+Leveldb is not supported (yet).

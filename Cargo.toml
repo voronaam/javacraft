@@ -8,4 +8,6 @@ classreader = "0.2.0"
 zip = {version = "0.1.15", default-features = false}
 flate2 = "0.2"
 rusqlite = "0.6.0"
+rustc-serialize = "0.3.19"
+docopt = "0.6"
 

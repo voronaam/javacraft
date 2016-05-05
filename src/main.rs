@@ -1,6 +1,9 @@
 extern crate classreader;
 extern crate zip;
+extern crate rustc_serialize;
+extern crate docopt;
 
+use docopt::Docopt;
 use classreader::*;
 use std::env;
 use std::fs::File;
@@ -8,12 +11,33 @@ use std::fs::File;
 mod codecity;
 mod freeminer;
 
+const USAGE: &'static str = "
+Java code to FreeMiner map analyzier.
+
+Usage:
+  javaminer [--map=<path>] <source>...
+  javaminer (-h | --help)
+
+Options:
+  -h --help     Show this screen.
+  --map=<path>  Path to FreeMiner SQLite map.
+
+Source can be one or more class or jar files.
+";
+
+#[derive(Debug, RustcDecodable)]
+struct Args {
+	flag_map: Option<String>,
+	arg_source: Vec<String>
+}
+
 fn main() {
-    env::args().nth(1).expect("usage: javamoose <class or jar file>...");
-    let mut args = env::args();
-    args.next(); // Skip exe name
+    let args: Args = Docopt::new(USAGE)
+                            .and_then(|d| d.decode())
+                            .unwrap_or_else(|e| e.exit());
+
     let mut classes: Vec<Class> = Vec::new();
-    for f in args {
+    for f in args.arg_source {
         if f.ends_with("class") {
             process_class_file(&f, &mut classes);
         } else if f.ends_with("jar") {
@@ -22,11 +46,11 @@ fn main() {
             println!("Ignoring unknown file type {}", f);
         }
     }
-    if !classes.is_empty() {
+    if !classes.is_empty() && args.flag_map.is_some() {
         println!("======================================================");
         let root_pkg = codecity::build_packages(&classes);
         println!("{:?}", root_pkg);
-        freeminer::write_to_freeminer(&classes);
+        freeminer::write_to_freeminer(&args.flag_map.unwrap(), &classes);
     }
     println!("Done!");
 }

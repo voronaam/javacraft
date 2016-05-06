@@ -173,7 +173,7 @@ fn voxels_to_blob(voxels: &MultiArray<u8, Dim3>, sx: usize, sy: usize, sz: usize
                    y + 1 < voxels.extents()[1] &&
                    z + 1 < voxels.extents()[2] &&
                    voxels[[x,y,z]] == 1u8 {
-                    let i = node_pos(x, y, z);
+                    let i = node_pos(x - sx, z - sz, y - sy);
                     parr[i] = 0x0;
                     parr2[i] = 0xf;
                 }
@@ -192,6 +192,7 @@ fn output_sql(conn: &Connection, package: &Package, voxels: &MultiArray<u8, Dim3
     let dimx = voxels.extents()[0] / BLOB_DIM + 1;
     let dimy = voxels.extents()[1] / BLOB_DIM + 1;
     let dimz = voxels.extents()[2] / BLOB_DIM + 1;
+    println!("Total map dimensions: {}x{}x{} blobs", dimx, dimy, dimz);
     
     for x in 0 .. dimx {
         for y in 0 .. dimy {
@@ -203,6 +204,7 @@ fn output_sql(conn: &Connection, package: &Package, voxels: &MultiArray<u8, Dim3
             };
             output_blob(&blob, conn, compute_position(x, 1, y), "", node_pos(0, 0, 0));
             for z in 0 .. dimz {
+                println!("Working on a blob: {}x{}x{}", x, y, z);
                 // create our class
                 let blob2 = voxels_to_blob(voxels, x * BLOB_DIM, y * BLOB_DIM, z * BLOB_DIM);
                 output_blob(&blob2, conn, compute_position(x, 2 + z, y), "", node_pos(0, 0, 0));

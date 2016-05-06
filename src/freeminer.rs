@@ -17,7 +17,7 @@ pub fn write_to_freeminer(path: &String, root: &Package) {
 	let voxels = build_array(root);
     // Open DB connection
     let conn = Connection::open(path).unwrap();
-	output_sql(&conn, root);
+	output_sql(&conn, root, &voxels);
     conn.close().unwrap();
 }
 
@@ -37,7 +37,7 @@ fn fill_from_package(pkg: &Package, voxels: &mut MultiArray<u8, Dim3>, oz: usize
 	// Fill the package itself
 	for x in ox .. ox + w {
 		for y in oy .. oy + d {
-			voxels[[x as usize, y as usize, oz]] = 1;
+			voxels[[x as usize, y as usize, oz]] = 1u8;
 		}
 	}
 	// Fill the subpackages
@@ -132,7 +132,8 @@ fn hex(v: &Vec<u8>) -> String {
 }
 
 // blob position in the world
-fn compute_position(x: i32, y: i32, z: i32) -> i32 {
+// Note that in freeminer x and z are horizontals and y (!) is the vertical (grows up)
+fn compute_position(x: usize, y: usize, z: usize) -> usize {
     x + 4096 * (y + 4096 * z)
 }
 
@@ -141,7 +142,7 @@ fn node_pos(x: usize, y: usize, z: usize) -> usize {
     (z * 16 + y) * 16 + x
 }
 
-fn output_blob(blob: &NodeBlob, conn: &Connection, pos: i32, sign: &str, sign_pos: usize) {
+fn output_blob(blob: &NodeBlob, conn: &Connection, pos: usize, sign: &str, sign_pos: usize) {
     use std::io::prelude::*;
     let blob_encoded = to_bytes(blob);
     let mut e = ZlibEncoder::new(Vec::new(), Compression::Default);
@@ -159,30 +160,64 @@ fn output_blob(blob: &NodeBlob, conn: &Connection, pos: i32, sign: &str, sign_po
     conn.execute(&format!("INSERT INTO blocks VALUES({},X'{}');", pos, block), &[]).unwrap();
 }
 
-fn output_sql(conn: &Connection, package: &Package) {
-    // create base
-    let blob = NodeBlob {
-        param0: [0xe; 4096],
-        param1: [0; 4096],
-        param2: [0; 4096]
-    };
-    output_blob(&blob, conn, compute_position(0, 1, 0), "", node_pos(0, 0, 0));
-    // create our class
+static BLOB_DIM: usize = 16;
+
+fn voxels_to_blob(voxels: &MultiArray<u8, Dim3>, sx: usize, sy: usize, sz: usize) -> NodeBlob {
     let mut parr = [0x3 as u16; 4096];
     let mut parr2 = [0x0 as u8; 4096];
-    let mut parr3 = [0x0 as u8; 4096];
-    // Let's create a block of proper size
-    // The location of a node in each of those arrays is (z*16*16 + y*16 + x)
-    let height = 5; // (class.methods.len() - 1) * 16 / scale;
-    for x in 4..8 {
-        for y in 0..height {
-            for z in 4..8 {
-                let i = node_pos(x, y, z);
-                parr[i] = 0x0;
-                parr2[i] = 0xf;
+    let parr3 = [0x0 as u8; 4096];
+    for x in sx .. sx + BLOB_DIM {
+        for y in sy .. sy + BLOB_DIM {
+            for z in sz .. sz + BLOB_DIM {
+                if x + 1 < voxels.extents()[0] &&
+                   y + 1 < voxels.extents()[1] &&
+                   z + 1 < voxels.extents()[2] &&
+                   voxels[[x,y,z]] == 1u8 {
+                    let i = node_pos(x, y, z);
+                    parr[i] = 0x0;
+                    parr2[i] = 0xf;
+                }
             }
         }
     }
+    return NodeBlob {
+        param0: parr,
+        param1: parr2,
+        param2: parr3
+    };
+}
+
+fn output_sql(conn: &Connection, package: &Package, voxels: &MultiArray<u8, Dim3>) {
+    // First, determine the dimensions
+    let dimx = voxels.extents()[0] / BLOB_DIM + 1;
+    let dimy = voxels.extents()[1] / BLOB_DIM + 1;
+    let dimz = voxels.extents()[2] / BLOB_DIM + 1;
+    
+    for x in 0 .. dimx {
+        for y in 0 .. dimy {
+            // create base
+            let blob = NodeBlob {
+                param0: [0xe; 4096],
+                param1: [0; 4096],
+                param2: [0; 4096]
+            };
+            output_blob(&blob, conn, compute_position(x, 1, y), "", node_pos(0, 0, 0));
+            for z in 0 .. dimz {
+                // create our class
+                let blob2 = voxels_to_blob(voxels, x * BLOB_DIM, y * BLOB_DIM, z * BLOB_DIM);
+                output_blob(&blob2, conn, compute_position(x, 2 + z, y), "", node_pos(0, 0, 0));
+            }
+            // Create air on top of our last block
+            let blob3 = NodeBlob {
+                param0: [0x3; 4096],
+                param1: [0; 4096],
+                param2: [0; 4096]
+            };
+            output_blob(&blob3, conn, compute_position(x, 2 + dimz, y), "", node_pos(0, 0, 0));
+            output_blob(&blob3, conn, compute_position(x, 3 + dimz, y), "", node_pos(0, 0, 0));
+        }
+    }
+    /*
     // Let's place a sign
     let sign_pos = node_pos(4, height, 4);
     parr[sign_pos] = 0x8;
@@ -195,7 +230,7 @@ fn output_sql(conn: &Connection, package: &Package) {
     };
     // output_blob(&blob2, conn, compute_position(0 + offset * 2, 2, 0), &get_class_name(&class), sign_pos);
     output_blob(&blob2, conn, compute_position(0, 2, 0), &package.name(), sign_pos);
-
+    */
 }
 
 //*****************************

@@ -11,22 +11,42 @@ const TONES: &'static [&'static str] = &["C", "D", "E", "F", "G", "a", "b", "c",
 pub fn write_to_file(path: &String, music: &Vec<MusicMeta>) {
     let mut file = File::create(path).unwrap();
     
-    write!(file, "tempo: 200\n\nvoice Right {{ channel: 2 }}\nvoice Left {{ channel: 1 }}\n\n").unwrap();
+    write!(file, "tempo: 200\n\nvoice Right {{ channel: 2 }}\nvoice Left {{ channel: 1, octave: -1 }}\n\n").unwrap();
     
     // Right hand
-    write!(file, "play Right {{:|").unwrap();
+    write!(file, "play Right\n{{\n:|").unwrap();
     for c in music {
         for m in c.methods() {
             render_measure(&mut file, m);
         }
     }
-    write!(file, "}}").unwrap();
+    write!(file, "\n}}\n\n").unwrap();
+    
+    // Left hand
+    write!(file, "play Left\n{{\n:|").unwrap();
+    for c in music {
+        for m in c.methods() {
+            render_chord(&mut file, m, 0);
+        }
+    }
+    write!(file, "\n:|").unwrap();
+    for c in music {
+        for m in c.methods() {
+            render_chord(&mut file, m, 1);
+        }
+    }
+    write!(file, "\n:|").unwrap();
+    for c in music {
+        for m in c.methods() {
+            render_chord(&mut file, m, 2);
+        }
+    }
+    write!(file, "\n}}\n\n").unwrap();
 }
 
 fn render_measure(file: &mut File, m: &MeasureMeta) {
     let tone_count = get_tone_count(m.lines);
     let base = get_base(m.size);
-    println!("method {:?}", m);
     for x in 0..tone_count {
         write!(file, "{} ", get_tone(base, m.complexity, x)).unwrap();
     }
@@ -35,8 +55,19 @@ fn render_measure(file: &mut File, m: &MeasureMeta) {
     }
 }
 
+fn render_chord(file: &mut File, m: &MeasureMeta, finger: u16) {
+    let tone_count = get_tone_count(m.lines);
+    let base = get_base(m.size);
+    if tone_count > 0 {
+        write!(file, "{} |", get_tone(base, m.complexity, finger)).unwrap();
+    }
+}
+
 fn get_tone_count(c: u16) -> u16 {
-    c / 4
+    match c / 4 {
+        0...8 => c/4,
+        _      => 8
+    }
 }
 
 fn get_base(c: usize) -> usize {

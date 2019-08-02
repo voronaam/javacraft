@@ -11,7 +11,7 @@ const TONES: &'static [&'static str] = &["C", "D", "E", "F", "G", "a", "b", "c",
 pub fn write_to_file(path: &String, music: &Vec<MusicMeta>) {
     let mut file = File::create(path).unwrap();
     
-    write!(file, "tempo: 200\n\nvoice Right {{ channel: 2 }}\nvoice Left {{ channel: 1, octave: -1 }}\n\n").unwrap();
+    write!(file, "tempo: 200\n\nvoice Right {{ channel: 2 }}\nvoice Left {{ channel: 1, octave: -1, volume: 80 }}\n\n").unwrap();
     
     // Right hand
     write!(file, "play Right\n{{\n:|").unwrap();
@@ -32,13 +32,13 @@ pub fn write_to_file(path: &String, music: &Vec<MusicMeta>) {
     write!(file, "\n:|").unwrap();
     for c in music {
         for m in c.methods() {
-            render_chord(&mut file, m, 1);
+            render_chord(&mut file, m, get_complexity_shift(m.complexity));
         }
     }
     write!(file, "\n:|").unwrap();
     for c in music {
         for m in c.methods() {
-            render_chord(&mut file, m, 2);
+            render_chord(&mut file, m, get_complexity_shift(m.complexity) + 1);
         }
     }
     write!(file, "\n}}\n\n").unwrap();
@@ -64,8 +64,8 @@ fn render_chord(file: &mut File, m: &MeasureMeta, finger: u16) {
 }
 
 fn get_tone_count(c: u16) -> u16 {
-    match c / 4 {
-        0...8 => c/4,
+    match c / 8 {
+        0...8 => c/8,
         _      => 8
     }
 }
@@ -85,12 +85,12 @@ fn get_complexity_shift(complexity: u16) -> u16 {
     match complexity {
         0  ...  2 => 2,
         3  ...  4 => 3,
-        _         => 3 + complexity / 5
+        _         => 4
     }
 }
 
 fn get_tone(base: usize, complexity: u16, offset: u16) -> &'static str {
-    let i = base as u16 + (offset % 3)*get_complexity_shift(complexity);
+    let i = base as u16 + (offset % get_complexity_shift(complexity));
     TONES[(i % 19) as usize]
 }
 

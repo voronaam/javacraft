@@ -10,17 +10,19 @@ use std::fs::File;
 
 mod codecity;
 mod freeminer;
+mod melo;
 
 const USAGE: &'static str = "
 Java code to FreeMiner map analyzier.
 
 Usage:
-  javaminer [--map=<path>] <source>...
+  javaminer [options] <source>...
   javaminer (-h | --help)
 
 Options:
-  -h --help     Show this screen.
-  --map=<path>  Path to FreeMiner SQLite map.
+  -h --help      Show this screen.
+  --map=<path>   Path to FreeMiner SQLite map.
+  --melo=<melo>  Path to output MELO file.
 
 Source can be one or more class or jar files.
 ";
@@ -28,6 +30,7 @@ Source can be one or more class or jar files.
 #[derive(Debug, Deserialize)]
 struct Args {
 	flag_map: Option<String>,
+    flag_melo: Option<String>,
 	arg_source: Vec<String>
 }
 
@@ -50,6 +53,13 @@ fn main() {
         println!("======================================================");
         let root_pkg = codecity::build_packages(&classes);
         freeminer::write_to_freeminer(&args.flag_map.unwrap(), &root_pkg);
+    }
+    if !classes.is_empty() && args.flag_melo.is_some() {
+        println!("=================== MELO =============================");
+        let melo_file = &args.flag_melo.unwrap();
+        println!("Generating melo output in {}", melo_file);
+        let music = codecity::build_music(&classes);
+        melo::write_to_file(&melo_file, &music);
     }
     println!("Done!");
 }

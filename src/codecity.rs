@@ -358,6 +358,43 @@ fn get_code_complexity(code: &Vec<(u32, Instruction)>) -> u16 {
     })
 }
 
+#[derive(Debug)]
+pub struct MeasureMeta {
+    size: usize,
+    lines: u16,
+    complexity: u16
+}
+#[derive(Debug)]
+pub struct MusicMeta {
+    name:  String,
+    method_count: usize,
+    field_count: usize,
+    code_size: usize,
+    methods: Vec<MeasureMeta>
+}
+
+pub fn build_music(classes: &Vec<Class>) -> Vec<MusicMeta> {
+    return classes.iter().map(class_music).collect();
+}
+
+fn class_music(class: &Class) -> MusicMeta {
+    MusicMeta {
+        name: get_class_name(&class),
+        method_count: class.methods.len(),
+        field_count: class.fields.len(),
+        code_size: get_total_code_size(&class),
+        methods: class.methods.iter().map(method_music).collect()
+    }
+}
+
+fn method_music(method: &Method) -> MeasureMeta {
+    MeasureMeta {
+        size: get_method_size(&method),
+        lines: get_method_lines(&method),
+        complexity: get_method_complexity(&method)
+    }
+}
+
 //*****************************
 // Unit tests
 

@@ -372,6 +372,11 @@ pub struct MusicMeta {
     code_size: usize,
     methods: Vec<MeasureMeta>
 }
+impl MusicMeta {
+    pub fn methods(&self) -> &Vec<MeasureMeta> {
+		return &self.methods;
+	}
+}
 
 pub fn build_music(classes: &Vec<Class>) -> Vec<MusicMeta> {
     return classes.iter().map(class_music).collect();

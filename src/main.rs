@@ -1,9 +1,10 @@
 extern crate classreader;
 extern crate zip;
-extern crate rustc_serialize;
 extern crate docopt;
+extern crate serde;
 
 use docopt::Docopt;
+use serde::Deserialize;
 use classreader::*;
 use std::fs::File;
 
@@ -24,7 +25,7 @@ Options:
 Source can be one or more class or jar files.
 ";
 
-#[derive(Debug, RustcDecodable)]
+#[derive(Debug, Deserialize)]
 struct Args {
 	flag_map: Option<String>,
 	arg_source: Vec<String>
@@ -32,7 +33,7 @@ struct Args {
 
 fn main() {
     let args: Args = Docopt::new(USAGE)
-                            .and_then(|d| d.decode())
+                            .and_then(|d| d.deserialize())
                             .unwrap_or_else(|e| e.exit());
 
     let mut classes: Vec<Class> = Vec::new();

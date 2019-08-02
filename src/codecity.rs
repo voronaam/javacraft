@@ -360,9 +360,9 @@ fn get_code_complexity(code: &Vec<(u32, Instruction)>) -> u16 {
 
 #[derive(Debug)]
 pub struct MeasureMeta {
-    size: usize,
-    lines: u16,
-    complexity: u16
+    pub size: usize,
+    pub lines: u16,
+    pub complexity: u16
 }
 #[derive(Debug)]
 pub struct MusicMeta {

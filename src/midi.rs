@@ -8,22 +8,12 @@ use midi_file::core::{Channel, Clocks, DurationName, GeneralMidi, NoteNumber, Ve
 use midi_file::file::{QuartersPerMinute, Track};
 use midi_file::MidiFile;
 use std::cmp::{min, max};
-use std::fs::File;
-use std::io::prelude::*;
 
 // durations
 const QUARTER: u32 = 1024;
 const EIGHTH: u32 = QUARTER / 2;
 const WHOLE: u32 = QUARTER * 4;
-const DOTTED_QUARTER: u32 = QUARTER + EIGHTH;
 
-// pitches
-const C4: NoteNumber = NoteNumber::new(72);
-const D4: NoteNumber = NoteNumber::new(74);
-const E4: NoteNumber = NoteNumber::new(76);
-
-// some arbitrary velocity
-const V: Velocity = Velocity::new(64);
 
 // channel zero (displayed as channel 1 in any sequencer UI)
 const CH: Channel = Channel::new(0);

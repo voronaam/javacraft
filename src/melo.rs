@@ -2,17 +2,20 @@
 // Output to MELO format
 
 extern crate classreader;
-use std::io::prelude::*;
+use codecity::{MeasureMeta, MusicMeta};
 use std::fs::File;
-use codecity::{MusicMeta, MeasureMeta};
+use std::io::prelude::*;
 
-const TONES: &'static [&'static str] = &["C", "D", "E", "F", "G", "a", "b", "c", "d", "e", "f", "g", "a'", "b'", "c'", "d'", "e'", "f'", "g'"];
-    
+const TONES: &'static [&'static str] = &[
+    "C", "D", "E", "F", "G", "a", "b", "c", "d", "e", "f", "g", "a'", "b'", "c'", "d'", "e'", "f'",
+    "g'",
+];
+
 pub fn write_to_file(path: &String, music: &Vec<MusicMeta>) {
     let mut file = File::create(path).unwrap();
-    
+
     write!(file, "tempo: 200\n\nvoice Right {{ channel: 2 }}\nvoice Left {{ channel: 1, octave: -1, volume: 80 }}\n\n").unwrap();
-    
+
     // Right hand
     write!(file, "play Right\n{{\n:|").unwrap();
     for c in music {
@@ -21,7 +24,7 @@ pub fn write_to_file(path: &String, music: &Vec<MusicMeta>) {
         }
     }
     write!(file, "\n}}\n\n").unwrap();
-    
+
     // Left hand
     write!(file, "play Left\n{{\n:|").unwrap();
     for c in music {
@@ -65,27 +68,27 @@ fn render_chord(file: &mut File, m: &MeasureMeta, finger: u16) {
 
 fn get_tone_count(c: u16) -> u16 {
     match c / 8 {
-        0...8 => c/8,
-        _      => 8
+        0..=8 => c / 8,
+        _ => 8,
     }
 }
 
 fn get_base(c: usize) -> usize {
-    match c/2 {
-        0  ... 10  => c,
-        11 ... 20  => 10 + (c - 10)/2,
-        21 ... 40  => 15 + (c - 20)/4,
-        41 ... 80  => 20 + (c - 40)/8,
-        81 ... 160 => 30 + (c - 80)/16,
-        _ => 18
+    match c / 2 {
+        0..=10 => c,
+        11..=20 => 10 + (c - 10) / 2,
+        21..=40 => 15 + (c - 20) / 4,
+        41..=80 => 20 + (c - 40) / 8,
+        81..=160 => 30 + (c - 80) / 16,
+        _ => 18,
     }
 }
 
 fn get_complexity_shift(complexity: u16) -> u16 {
     match complexity {
-        0  ...  2 => 2,
-        3  ...  4 => 3,
-        _         => 4
+        0..=2 => 2,
+        3..=4 => 3,
+        _ => 4,
     }
 }
 

@@ -5,12 +5,10 @@ authors = ["Lex Vorona <voronaam@gmail.com>"]
 
 [dependencies]
 classreader = "0.2.1"
-# TODO: Check back to see why I disabled default-features 3 years ago
-# zip = {version = "0.1.15", default-features = false}
-zip = "0.5.1"
-flate2 = "1.0.9"
-rusqlite = "0.20.0"
-docopt = "1.1.0"
+zip = "0.6.2"
+flate2 = "1.0.24"
+rusqlite = "0.28.0"
+docopt = "1.1.1"
 serde = { version = "1", features = ["derive"] }
 multiarray = "0.1.3"
-
+midi_file = "0.0.2"

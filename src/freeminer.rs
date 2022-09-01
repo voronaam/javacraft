@@ -2,68 +2,66 @@
 // Minetest/Freemine data model
 
 extern crate classreader;
-extern crate rusqlite;
 extern crate flate2;
 extern crate multiarray;
+extern crate rusqlite;
 
-use self::flate2::Compression;
 use self::flate2::write::ZlibEncoder;
-use self::rusqlite::{Connection, NO_PARAMS};
-use self::multiarray::{MultiArray, Dim3};
+use self::flate2::Compression;
+use self::multiarray::{Dim3, MultiArray};
+use self::rusqlite::Connection;
 use codecity::Package;
 
-
 pub fn write_to_freeminer(path: &String, root: &Package) {
-	let voxels = build_array(root);
+    let voxels = build_array(root);
     // Open DB connection
     let conn = Connection::open(path).unwrap();
-	output_sql(&conn, root, &voxels);
+    output_sql(&conn, root, &voxels);
     conn.close().unwrap();
 }
 
 fn build_array(root: &Package) -> MultiArray<u8, Dim3> {
-	use self::multiarray::*;
-	let height = root.height();
-	let (width, depth) = root.size();
-	// u8 for the future use, when we'll have more than just non-emptiness to track
-	let mut voxels = Array3D::new([width as usize, depth as usize, height as usize], 0 as u8);
-	fill_from_package(root, &mut voxels, 0);
-	return voxels;
+    use self::multiarray::*;
+    let height = root.height();
+    let (width, depth) = root.size();
+    // u8 for the future use, when we'll have more than just non-emptiness to track
+    let mut voxels = Array3D::new([width as usize, depth as usize, height as usize], 0 as u8);
+    fill_from_package(root, &mut voxels, 0);
+    return voxels;
 }
 
 fn fill_from_package(pkg: &Package, voxels: &mut MultiArray<u8, Dim3>, oz: usize) {
-	let (w, d) = pkg.size();
-	let (ox, oy) = pkg.position();
-	// Fill the package itself
-	for x in ox .. ox + w {
-		for y in oy .. oy + d {
-			voxels[[x as usize, y as usize, oz]] = 1u8;
-		}
-	}
-	// Fill the subpackages
-	for p in &pkg.packages() {
-		fill_from_package(p, voxels, oz + 1);
-	}
-	// Fill the buildings
-	for b in pkg.buildings() {
-		let (px, py) = b.position();
-		let (bw, bd) = b.size();
-		let h = b.height() as usize;
-		for x in px .. px + bw {
-			for y in py .. py + bd {
-				for z in oz + 1 .. oz + 1 + h {
-					voxels[[x as usize, y as usize, z]] = 1;
-				}
-			}
-		}
-	}
-
+    let (w, d) = pkg.size();
+    let (ox, oy) = pkg.position();
+    // Fill the package itself
+    for x in ox..ox + w {
+        for y in oy..oy + d {
+            voxels[[x as usize, y as usize, oz]] = 1u8;
+        }
+    }
+    // Fill the subpackages
+    for p in &pkg.packages() {
+        fill_from_package(p, voxels, oz + 1);
+    }
+    // Fill the buildings
+    for b in pkg.buildings() {
+        let (px, py) = b.position();
+        let (bw, bd) = b.size();
+        let h = b.height() as usize;
+        for x in px..px + bw {
+            for y in py..py + bd {
+                for z in oz + 1..oz + 1 + h {
+                    voxels[[x as usize, y as usize, z]] = 1;
+                }
+            }
+        }
+    }
 }
 
 struct NodeBlob {
     param0: [u16; 4096],
     param1: [u8; 4096],
-    param2: [u8; 4096]
+    param2: [u8; 4096],
 }
 
 // blob to bytes...
@@ -117,7 +115,9 @@ fn meta_bytes(text: &str, pos: u16) -> Vec<u8> {
     push_variable(&mut vec, "infotext", text);
     push_variable(&mut vec, "text", text);
     // EndInventory
-    vec.append(&mut vec![0x45 as u8, 0x6e, 0x64, 0x49, 0x6e, 0x76, 0x65, 0x6e, 0x74, 0x6f, 0x72, 0x79, 0x0a]);
+    vec.append(&mut vec![
+        0x45 as u8, 0x6e, 0x64, 0x49, 0x6e, 0x76, 0x65, 0x6e, 0x74, 0x6f, 0x72, 0x79, 0x0a,
+    ]);
     vec
 }
 
@@ -156,8 +156,13 @@ fn output_blob(blob: &NodeBlob, conn: &Connection, pos: usize, sign: &str, sign_
     let meta_compressed = e1.finish().unwrap();
     let meta_hex = hex(&meta_compressed);
     let block = format!("19060202{}{}0000000000024900000A0000000D64656661756C743A73746F6E650001000C64656661756C743A73616E640002000C64656661756C743A64697274000300036169720004001064656661756C743A646972745F6472790005001764656661756C743A646972745F776974685F67726173730006001564656661756C743A77617465725F666C6F77696E670007000F64656661756C743A67726173735F310008001164656661756C743A7369676E5F77616C6C0009000E64656661756C743A67726176656C0A0000", blob_hex, meta_hex);
-    conn.execute(&format!("DELETE FROM blocks WHERE pos = {};", pos), NO_PARAMS).unwrap();
-    conn.execute(&format!("INSERT INTO blocks VALUES({},X'{}');", pos, block), NO_PARAMS).unwrap();
+    conn.execute(&format!("DELETE FROM blocks WHERE pos = {};", pos), [])
+        .unwrap();
+    conn.execute(
+        &format!("INSERT INTO blocks VALUES({},X'{}');", pos, block),
+        [],
+    )
+    .unwrap();
 }
 
 static BLOB_DIM: usize = 16;
@@ -166,13 +171,14 @@ fn voxels_to_blob(voxels: &MultiArray<u8, Dim3>, sx: usize, sy: usize, sz: usize
     let mut parr = [0x3 as u16; 4096];
     let mut parr2 = [0x0 as u8; 4096];
     let parr3 = [0x0 as u8; 4096];
-    for x in sx .. sx + BLOB_DIM {
-        for y in sy .. sy + BLOB_DIM {
-            for z in sz .. sz + BLOB_DIM {
-                if x + 1 < voxels.extents()[0] &&
-                   y + 1 < voxels.extents()[1] &&
-                   z + 1 < voxels.extents()[2] &&
-                   voxels[[x,y,z]] == 1u8 {
+    for x in sx..sx + BLOB_DIM {
+        for y in sy..sy + BLOB_DIM {
+            for z in sz..sz + BLOB_DIM {
+                if x + 1 < voxels.extents()[0]
+                    && y + 1 < voxels.extents()[1]
+                    && z + 1 < voxels.extents()[2]
+                    && voxels[[x, y, z]] == 1u8
+                {
                     let i = node_pos(x - sx, z - sz, y - sy);
                     parr[i] = 0x0;
                     parr2[i] = 0xf;
@@ -183,40 +189,64 @@ fn voxels_to_blob(voxels: &MultiArray<u8, Dim3>, sx: usize, sy: usize, sz: usize
     return NodeBlob {
         param0: parr,
         param1: parr2,
-        param2: parr3
+        param2: parr3,
     };
 }
 
-fn output_sql(conn: &Connection, package: &Package, voxels: &MultiArray<u8, Dim3>) {
+fn output_sql(conn: &Connection, _package: &Package, voxels: &MultiArray<u8, Dim3>) {
     // First, determine the dimensions
     let dimx = voxels.extents()[0] / BLOB_DIM + 1;
     let dimy = voxels.extents()[1] / BLOB_DIM + 1;
     let dimz = voxels.extents()[2] / BLOB_DIM + 1;
     println!("Total map dimensions: {}x{}x{} blobs", dimx, dimy, dimz);
-    
-    for x in 0 .. dimx {
-        for y in 0 .. dimy {
+
+    for x in 0..dimx {
+        for y in 0..dimy {
             // create base
             let blob = NodeBlob {
                 param0: [0xe; 4096],
                 param1: [0; 4096],
-                param2: [0; 4096]
+                param2: [0; 4096],
             };
-            output_blob(&blob, conn, compute_position(x, 1, y), "", node_pos(0, 0, 0));
-            for z in 0 .. dimz {
+            output_blob(
+                &blob,
+                conn,
+                compute_position(x, 1, y),
+                "",
+                node_pos(0, 0, 0),
+            );
+            for z in 0..dimz {
                 println!("Working on a blob: {}x{}x{}", x, y, z);
                 // create our class
                 let blob2 = voxels_to_blob(voxels, x * BLOB_DIM, y * BLOB_DIM, z * BLOB_DIM);
-                output_blob(&blob2, conn, compute_position(x, 2 + z, y), "", node_pos(0, 0, 0));
+                output_blob(
+                    &blob2,
+                    conn,
+                    compute_position(x, 2 + z, y),
+                    "",
+                    node_pos(0, 0, 0),
+                );
             }
             // Create air on top of our last block
             let blob3 = NodeBlob {
                 param0: [0x3; 4096],
                 param1: [0; 4096],
-                param2: [0; 4096]
+                param2: [0; 4096],
             };
-            output_blob(&blob3, conn, compute_position(x, 2 + dimz, y), "", node_pos(0, 0, 0));
-            output_blob(&blob3, conn, compute_position(x, 3 + dimz, y), "", node_pos(0, 0, 0));
+            output_blob(
+                &blob3,
+                conn,
+                compute_position(x, 2 + dimz, y),
+                "",
+                node_pos(0, 0, 0),
+            );
+            output_blob(
+                &blob3,
+                conn,
+                compute_position(x, 3 + dimz, y),
+                "",
+                node_pos(0, 0, 0),
+            );
         }
     }
     /*

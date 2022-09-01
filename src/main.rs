@@ -1,16 +1,18 @@
 extern crate classreader;
-extern crate zip;
 extern crate docopt;
 extern crate serde;
+extern crate zip;
+extern crate midi_file;
 
+use classreader::*;
 use docopt::Docopt;
 use serde::Deserialize;
-use classreader::*;
 use std::fs::File;
 
 mod codecity;
 mod freeminer;
 mod melo;
+mod midi;
 
 const USAGE: &'static str = "
 Java code to FreeMiner map analyzier.
@@ -23,21 +25,23 @@ Options:
   -h --help      Show this screen.
   --map=<path>   Path to FreeMiner SQLite map.
   --melo=<melo>  Path to output MELO file.
+  --midi=<midi>  Path to output MIDI file.
 
 Source can be one or more class or jar files.
 ";
 
 #[derive(Debug, Deserialize)]
 struct Args {
-	flag_map: Option<String>,
+    flag_map: Option<String>,
     flag_melo: Option<String>,
-	arg_source: Vec<String>
+    flag_midi: Option<String>,
+    arg_source: Vec<String>,
 }
 
 fn main() {
     let args: Args = Docopt::new(USAGE)
-                            .and_then(|d| d.deserialize())
-                            .unwrap_or_else(|e| e.exit());
+        .and_then(|d| d.deserialize())
+        .unwrap_or_else(|e| e.exit());
 
     let mut classes: Vec<Class> = Vec::new();
     for f in args.arg_source {
@@ -60,6 +64,13 @@ fn main() {
         println!("Generating melo output in {}", melo_file);
         let music = codecity::build_music(&classes);
         melo::write_to_file(&melo_file, &music);
+    }
+    if !classes.is_empty() && args.flag_midi.is_some() {
+        println!("=================== MIDI =============================");
+        let midi_file = &args.flag_midi.unwrap();
+        println!("Generating MIDI output in {}", midi_file);
+        let music = codecity::build_music(&classes);
+        midi::write_to_file(&midi_file, &music);
     }
     println!("Done!");
 }

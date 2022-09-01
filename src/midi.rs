@@ -39,13 +39,13 @@ pub fn write_to_file(path: &String, music: &Vec<MusicMeta>) {
 
     // set time signature and tempo
     track
-        .push_time_signature(0, 6, DurationName::Eighth, Clocks::DottedQuarter)
+        .push_time_signature(0, 6, DurationName::Eighth, Clocks::Quarter)
         .unwrap();
     track.push_tempo(0, QuartersPerMinute::new(116)).unwrap();
 
     for c in music {
-        for m in c.methods() {
-            render_chord(&mut track, m, 0);
+        for (i, m) in c.methods().iter().enumerate() {
+            render_chord(&mut track, m, i%3);
         }
     }
 
@@ -57,52 +57,23 @@ pub fn write_to_file(path: &String, music: &Vec<MusicMeta>) {
     mfile.save(path).unwrap();
 }
 
-fn render_chord(track: &mut Track, m: &MeasureMeta, finger: u16) {
-    let tone_count = get_tone_count(m.lines);
-    let base = get_base(m.size);
-    if tone_count > 0 {
-        let note = get_tone(base, m.complexity, finger);
-        let duration = max(min((m.lines as u32)*32, WHOLE), EIGHTH);
-        track.push_lyric(0, format!("{}\n", m.name)).unwrap();
-        track
-            .push_note_on(0, CH, note, Velocity::new((max(60, m.complexity)) as u8))
-            .unwrap();
-        // the note-off event determines the duration of the note
-        track
-            .push_note_off(duration, CH, note, Velocity::new(m.size as u8))
-            .unwrap();
-    }
+fn render_chord(track: &mut Track, m: &MeasureMeta, finger: usize) {
+    if m.lines == 0 {return;}
+    let note = get_tone( m.size, finger);
+    let duration = max(min((m.lines as u32)*32, WHOLE), EIGHTH);
+    track.push_lyric(0, format!("{}\n", m.name)).unwrap();
+    track
+        .push_note_on(0, CH, note, Velocity::new((max(60, m.complexity)) as u8))
+        .unwrap();
+    // the note-off event determines the duration of the note
+    track
+        .push_note_off(duration, CH, note, Velocity::new(m.size as u8))
+        .unwrap();
 }
 
-fn get_tone_count(c: u16) -> u16 {
-    match c / 8 {
-        0..=8 => c / 8,
-        _ => 8,
-    }
-}
-
-fn get_base(c: usize) -> usize {
-    match c / 2 {
-        0..=10 => c,
-        11..=20 => 10 + (c - 10) / 2,
-        21..=40 => 15 + (c - 20) / 4,
-        41..=80 => 20 + (c - 40) / 8,
-        81..=160 => 30 + (c - 80) / 16,
-        _ => 18,
-    }
-}
-
-fn get_complexity_shift(complexity: u16) -> u16 {
-    match complexity {
-        0..=2 => 2,
-        3..=4 => 3,
-        _ => 4,
-    }
-}
-
-fn get_tone(base: usize, complexity: u16, offset: u16) -> NoteNumber {
-    let i = base as u16 + (offset % get_complexity_shift(complexity));
-    NoteNumber::new(40 + (i*2 % 40) as u8)
+fn get_tone(size: usize, offset: usize) -> NoteNumber {
+    let i = 40 + min(128, size)/4 + offset*8;
+    NoteNumber::new(i as u8)
 }
 
 //*****************************

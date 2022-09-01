@@ -4,37 +4,17 @@
 extern crate classreader;
 
 use codecity::{MeasureMeta, MusicMeta};
+use midi_file::core::{Channel, Clocks, DurationName, GeneralMidi, NoteNumber, Velocity};
+use midi_file::file::{QuartersPerMinute, Track};
 use midi_file::MidiFile;
-use midi_file::core::{GeneralMidi, DurationName, Clocks, Velocity, NoteNumber, Channel};
-use midi_file::file::{Track, QuartersPerMinute};
+use std::cmp::{min, max};
 use std::fs::File;
 use std::io::prelude::*;
-
-const TONES: &'static [NoteNumber] = &[
-    NoteNumber::new(72),
-    NoteNumber::new(74),
-    NoteNumber::new(76),
-    NoteNumber::new(78),
-    NoteNumber::new(80),
-    NoteNumber::new(82),
-    NoteNumber::new(84),
-    NoteNumber::new(86),
-    NoteNumber::new(88),
-    NoteNumber::new(90),
-    NoteNumber::new(92),
-    NoteNumber::new(94),
-    NoteNumber::new(96),
-    NoteNumber::new(98),
-    NoteNumber::new(100),
-    NoteNumber::new(102),
-    NoteNumber::new(104),
-    NoteNumber::new(106),
-    NoteNumber::new(108),
-];
 
 // durations
 const QUARTER: u32 = 1024;
 const EIGHTH: u32 = QUARTER / 2;
+const WHOLE: u32 = QUARTER * 4;
 const DOTTED_QUARTER: u32 = QUARTER + EIGHTH;
 
 // pitches
@@ -54,11 +34,9 @@ pub fn write_to_file(path: &String, music: &Vec<MusicMeta>) {
     // set up track metadata
     let mut track = Track::default();
     track.set_name("Singer").unwrap();
-    track.set_instrument_name("Alto").unwrap();
-    track.set_general_midi(CH, GeneralMidi::SynthVoice).unwrap();
+    track.set_instrument_name("The Java Code").unwrap();
+    track.set_general_midi(CH, GeneralMidi::Oboe).unwrap();
 
-
-    
     // set time signature and tempo
     track
         .push_time_signature(0, 6, DurationName::Eighth, Clocks::DottedQuarter)
@@ -76,7 +54,6 @@ pub fn write_to_file(path: &String, music: &Vec<MusicMeta>) {
     // add the track to the file
     mfile.push_track(track).unwrap();
 
-    
     mfile.save(path).unwrap();
 }
 
@@ -85,13 +62,15 @@ fn render_chord(track: &mut Track, m: &MeasureMeta, finger: u16) {
     let base = get_base(m.size);
     if tone_count > 0 {
         let note = get_tone(base, m.complexity, finger);
+        let duration = max(min((m.lines as u32)*32, WHOLE), EIGHTH);
         track.push_lyric(0, format!("{}\n", m.name)).unwrap();
-        track.push_note_on(0, CH, note, V).unwrap();
+        track
+            .push_note_on(0, CH, note, Velocity::new((max(60, m.complexity)) as u8))
+            .unwrap();
         // the note-off event determines the duration of the note
         track
-            .push_note_off(EIGHTH, CH, note, Velocity::default())
+            .push_note_off(duration, CH, note, Velocity::new(m.size as u8))
             .unwrap();
-    
     }
 }
 
@@ -123,7 +102,7 @@ fn get_complexity_shift(complexity: u16) -> u16 {
 
 fn get_tone(base: usize, complexity: u16, offset: u16) -> NoteNumber {
     let i = base as u16 + (offset % get_complexity_shift(complexity));
-    TONES[(i % 19) as usize]
+    NoteNumber::new(40 + (i*2 % 40) as u8)
 }
 
 //*****************************

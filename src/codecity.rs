@@ -421,7 +421,11 @@ fn class_music(class: &Class) -> MusicMeta {
         method_count: class.methods.len(),
         field_count: class.fields.len(),
         code_size: get_total_code_size(&class),
-        methods: class.methods.iter().map(|m| method_music(class, m)).collect(),
+        methods: class
+            .methods
+            .iter()
+            .map(|m| method_music(class, m))
+            .collect(),
     }
 }
 
@@ -430,7 +434,14 @@ fn method_music(class: &Class, method: &Method) -> MeasureMeta {
         size: get_method_size(&method),
         lines: get_method_lines(&method),
         complexity: get_method_complexity(&method),
-        name: format!("{}::{}", get_class_name(class), get_string(&class, method.name_index as usize)),
+        name: format!(
+            "{}::{} (size: {}, lines: {}, complexity: {})",
+            get_class_name(class),
+            get_string(&class, method.name_index as usize),
+            get_method_size(&method),
+            get_method_lines(&method),
+            get_method_complexity(&method)
+        ),
     }
 }
 

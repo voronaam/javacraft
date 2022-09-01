@@ -1,8 +1,8 @@
 extern crate classreader;
 extern crate docopt;
+extern crate midi_file;
 extern crate serde;
 extern crate zip;
-extern crate midi_file;
 
 use classreader::*;
 use docopt::Docopt;

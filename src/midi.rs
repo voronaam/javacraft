@@ -1,5 +1,5 @@
 //*****************************
-// Output to MELO format
+// Output to MIDI file
 
 extern crate classreader;
 

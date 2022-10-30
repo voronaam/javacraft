@@ -13,6 +13,7 @@ mod codecity;
 mod freeminer;
 mod melo;
 mod midi;
+mod supercollider;
 
 const USAGE: &'static str = "
 Java code to FreeMiner map analyzier.
@@ -22,10 +23,11 @@ Usage:
   javaminer (-h | --help)
 
 Options:
-  -h --help      Show this screen.
-  --map=<path>   Path to FreeMiner SQLite map.
-  --melo=<melo>  Path to output MELO file.
-  --midi=<midi>  Path to output MIDI file.
+  -h --help       Show this screen.
+  --map=<path>    Path to FreeMiner SQLite map.
+  --melo=<melo>   Path to output MELO file.
+  --midi=<midi>   Path to output MIDI file.
+  --super=<file>  Path to output a SuperCollider script.
 
 Source can be one or more class or jar files.
 ";
@@ -35,6 +37,7 @@ struct Args {
     flag_map: Option<String>,
     flag_melo: Option<String>,
     flag_midi: Option<String>,
+    flag_super: Option<String>,
     arg_source: Vec<String>,
 }
 
@@ -71,6 +74,13 @@ fn main() {
         println!("Generating MIDI output in {}", midi_file);
         let music = codecity::build_music(&classes);
         midi::write_to_file(&midi_file, &music);
+    }
+    if !classes.is_empty() && args.flag_super.is_some() {
+        println!("=================== SUPER ============================");
+        let super_file = &args.flag_super.unwrap();
+        println!("Generating SuperCollider output in {}", super_file);
+        let music = codecity::build_music(&classes);
+        supercollider::write_to_file(&super_file, &music);
     }
     println!("Done!");
 }

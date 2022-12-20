@@ -61,9 +61,10 @@ SynthDef(\class, {
 
 (
 ~r = Routine.new({
-   PASTE THE SNIPPET HERE
+
+PASTE THE SNIPPET HERE
    
-		6.wait;
+	6.wait;
 	CmdPeriod.run;
 });
 )

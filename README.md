@@ -14,7 +14,7 @@ With `--melo` parameter it will generate a [MELO](https://github.com/mistodon/me
 SuperCollider mode
 ===
 
-With `--super` parameter the program will output a snipped of SuperCollider code that can be used to generate an audio representation
+With `--super` parameter the program will output a snippet of SuperCollider code that can be used to generate an audio representation
 of a JAR or class file.
 
 You still need to come up with a "voice" for it. For example, I have been playing with this routine.
